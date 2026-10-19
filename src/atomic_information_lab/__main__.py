@@ -1,4 +1,5 @@
 """Command line: python -m atomic_information_lab {reproduce,solve} ..."""
+
 from __future__ import annotations
 
 import argparse
@@ -22,8 +23,9 @@ def _finite_float(text: str) -> float:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="atomic_information_lab",
-                                 description="Exact optional-stop planning in a synthetic two-state model.")
+    ap = argparse.ArgumentParser(
+        prog="atomic_information_lab", description="Exact optional-stop planning in a synthetic two-state model."
+    )
     sub = ap.add_subparsers(dest="command", required=True)
     rp = sub.add_parser("reproduce", help="print the reference tables as JSON")
     rp.add_argument("--table", choices=("single", "two-model", "sensitivity", "all"), default="all")
@@ -44,6 +46,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
         if args.command == "reproduce":
+            if args.max_horizon is not None and not 0 <= args.max_horizon <= MAX_HORIZON:
+                raise ValueError("--max-horizon out of range")
             out = {}
             single_h = 5 if args.max_horizon is None else args.max_horizon
             two_h = 4 if args.max_horizon is None else args.max_horizon
@@ -54,11 +58,13 @@ def main(argv: list[str] | None = None) -> int:
             if args.table in ("sensitivity", "all"):
                 out["two_model_sensitivity"] = two_model_sensitivity(two_h)
         else:
-            pr = Problem((Hypothesis(args.k01, args.k10, args.bias_flip),), actions=DEFAULT_ACTIONS,
-                         objective=Objective(args.alpha, args.energy_lambda, args.retention_weight))
+            pr = Problem(
+                (Hypothesis(args.k01, args.k10, args.bias_flip),),
+                actions=DEFAULT_ACTIONS,
+                objective=Objective(args.alpha, args.energy_lambda, args.retention_weight),
+            )
             d = solve(pr, horizon=args.horizon, allow_stop=not args.forced)
-            out = {"value": d.value, "first_action": d.action, "horizon": args.horizon,
-                   "forced": args.forced}
+            out = {"value": d.value, "first_action": d.action, "horizon": args.horizon, "forced": args.forced}
     except (ValueError, ArithmeticError) as exc:
         print(f"error: {exc} (horizon range 0..{MAX_HORIZON})", file=sys.stderr)
         return 2

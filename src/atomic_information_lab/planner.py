@@ -13,11 +13,12 @@ and resolved deterministically -- STOP first, then actions in catalogue order.
 This makes the chosen policy independent of last-bit floating point noise; the
 reported value can exceed the exact optimum by at most ``horizon * TIE_TOL``.
 """
+
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from itertools import product
-from typing import Callable, Sequence
 
 from .model import STOP, Action, Problem
 
@@ -50,7 +51,7 @@ class Decision:
 
 @dataclass(frozen=True)
 class PolicyStats:
-    value: float            # expected terminal loss + expected energy cost
+    value: float  # expected terminal loss + expected energy cost
     expected_steps: float
     expected_energy: float
     expected_terminal_loss: float
@@ -85,8 +86,9 @@ def _solve(problem: Problem, belief, horizon: int, allow_stop: bool) -> Decision
     return _pick(options)
 
 
-def solve(problem: Problem, belief: Sequence[float] | None = None, horizon: int = 3,
-          *, allow_stop: bool = True) -> Decision:
+def solve(
+    problem: Problem, belief: Sequence[float] | None = None, horizon: int = 3, *, allow_stop: bool = True
+) -> Decision:
     """Optimal expected loss and first decision from ``belief`` (default: initial belief)."""
     _check_horizon(horizon)
     if not isinstance(allow_stop, bool):
@@ -95,8 +97,9 @@ def solve(problem: Problem, belief: Sequence[float] | None = None, horizon: int 
     return _solve(problem, belief, horizon, allow_stop)
 
 
-def evaluate_policy(problem: Problem, policy: Policy, horizon: int,
-                    belief: Sequence[float] | None = None) -> PolicyStats:
+def evaluate_policy(
+    problem: Problem, policy: Policy, horizon: int, belief: Sequence[float] | None = None
+) -> PolicyStats:
     """Exact expected value of an arbitrary (history-dependent) policy."""
     _check_horizon(horizon)
     belief = problem.initial_belief() if belief is None else problem.validate_belief(belief)
@@ -122,23 +125,24 @@ def evaluate_policy(problem: Problem, policy: Policy, horizon: int,
 def optimal_policy(problem: Problem, *, allow_stop: bool = True) -> Policy:
     def choose(b, hist, h):
         return _solve(problem, b, h, allow_stop).action
+
     return choose
 
 
 def greedy_policy(problem: Problem) -> Policy:
     """Myopic rule: compare STOP with every one-step lookahead, then repeat."""
+
     def choose(b, hist, h):
         options = [(problem.terminal_loss(b), STOP)]
         for a in problem.actions:
-            v = problem.step_cost(a) + sum(p * problem.terminal_loss(post)
-                                           for _, p, post in problem.branches(b, a))
+            v = problem.step_cost(a) + sum(p * problem.terminal_loss(post) for _, p, post in problem.branches(b, a))
             options.append((v, a.name))
         return _pick(options).action
+
     return choose
 
 
-def open_loop_value(problem: Problem, sequence: Sequence[str],
-                    belief: Sequence[float] | None = None) -> float:
+def open_loop_value(problem: Problem, sequence: Sequence[str], belief: Sequence[float] | None = None) -> float:
     """Value of measuring the fixed sequence (no adaptation), then STOP."""
     seq = tuple(sequence)
     _check_horizon(len(seq))
@@ -154,8 +158,9 @@ def open_loop_value(problem: Problem, sequence: Sequence[str],
     return rec(belief, 0)
 
 
-def best_open_loop(problem: Problem, horizon: int,
-                   belief: Sequence[float] | None = None) -> tuple[float, tuple[str, ...]]:
+def best_open_loop(
+    problem: Problem, horizon: int, belief: Sequence[float] | None = None
+) -> tuple[float, tuple[str, ...]]:
     """Best fixed sequence of length 0..horizon (shorter preferred on ties)."""
     _check_horizon(horizon)
     best = (open_loop_value(problem, (), belief), ())
@@ -174,6 +179,7 @@ def nominal_policy(nominal: Problem) -> Policy:
     the Bayes risk of model misspecification. The nominal problem must share
     action names with the problem it is evaluated under.
     """
+
     def choose(_b, hist, h):
         nb = nominal.initial_belief()
         for name, y in hist:
@@ -182,4 +188,5 @@ def nominal_policy(nominal: Problem) -> Policy:
                 raise ArithmeticError("observation impossible under the nominal model")
             nb = match[0]
         return _solve(nominal, nb, h, True).action
+
     return choose

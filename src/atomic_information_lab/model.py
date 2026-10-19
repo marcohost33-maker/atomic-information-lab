@@ -19,12 +19,13 @@ All quantities are dimensionless model parameters. ``energy`` is an abstract
 cost unit, not joules. This is a synthetic classical model; it does not
 describe any specific instrument and makes no quantum claim.
 """
+
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import product
 from math import expm1, isfinite
-from typing import Sequence
 
 __all__ = [
     "Action",
@@ -172,19 +173,14 @@ class Problem:
                 move = ((1.0 - p01, p01), (p10, 1.0 - p10))
                 f = hyp.bias_flip
                 self._kernel[(t, a.name)] = tuple(
-                    tuple(
-                        (move[x][x2] * (f if b != b2 else 1.0 - f)) if x0 == y0 else 0.0
-                        for (y0, x2, b2) in _LOCAL
-                    )
+                    tuple((move[x][x2] * (f if b != b2 else 1.0 - f)) if x0 == y0 else 0.0 for (y0, x2, b2) in _LOCAL)
                     for (x0, x, b) in _LOCAL
                 )
 
     # ------------------------------------------------------------ beliefs
     def initial_belief(self) -> tuple[float, ...]:
         """x0 uniform, x == x0, b uniform and independent; hypotheses by weight."""
-        return tuple(
-            w * (0.25 if x == x0 else 0.0) for w in self.weights for (x0, x, b) in _LOCAL
-        )
+        return tuple(w * (0.25 if x == x0 else 0.0) for w in self.weights for (x0, x, b) in _LOCAL)
 
     def validate_belief(self, belief: Sequence[float]) -> tuple[float, ...]:
         belief = tuple(belief)
@@ -252,15 +248,14 @@ class Problem:
 
     def model_posterior(self, belief: Sequence[float]) -> tuple[float, ...]:
         belief = self.validate_belief(belief)
-        return tuple(sum(belief[8 * t: 8 * (t + 1)]) for t in range(len(self.hypotheses)))
+        return tuple(sum(belief[8 * t : 8 * (t + 1)]) for t in range(len(self.hypotheses)))
 
     def terminal_loss(self, belief: Sequence[float]) -> float:
         """Expected Brier score of the posterior-mean forecasts plus retention penalty."""
         m = self.marginals(belief)
         o = self.objective
         p0, pt = m["p_initial_one"], m["p_current_one"]
-        return (o.alpha * p0 * (1.0 - p0) + (1.0 - o.alpha) * pt * (1.0 - pt)
-                + o.retention_weight * m["p_changed"])
+        return o.alpha * p0 * (1.0 - p0) + (1.0 - o.alpha) * pt * (1.0 - pt) + o.retention_weight * m["p_changed"]
 
     def step_cost(self, action: Action) -> float:
         return self.objective.energy_lambda * action.energy

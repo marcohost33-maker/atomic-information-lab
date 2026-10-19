@@ -4,6 +4,7 @@ synthetic discrete two-state measurement model.
 Research reference only. No hardware access, no instrument calibration, no
 quantum or atomic-physics validation claim.
 """
+
 from .model import (
     DEFAULT_ACTIONS,
     DEFAULT_HYPOTHESIS,
@@ -31,8 +32,24 @@ from .planner import (
 __version__ = "0.1.0"
 
 __all__ = [
-    "Action", "Hypothesis", "Objective", "Problem", "DEFAULT_ACTIONS", "DEFAULT_HYPOTHESIS",
-    "TWO_HYPOTHESES", "STOP", "MAX_HORIZON", "TIE_TOL", "Decision", "PolicyStats", "solve",
-    "evaluate_policy", "optimal_policy", "greedy_policy", "open_loop_value", "best_open_loop",
-    "nominal_policy", "__version__",
+    "Action",
+    "Hypothesis",
+    "Objective",
+    "Problem",
+    "DEFAULT_ACTIONS",
+    "DEFAULT_HYPOTHESIS",
+    "TWO_HYPOTHESES",
+    "STOP",
+    "MAX_HORIZON",
+    "TIE_TOL",
+    "Decision",
+    "PolicyStats",
+    "solve",
+    "evaluate_policy",
+    "optimal_policy",
+    "greedy_policy",
+    "open_loop_value",
+    "best_open_loop",
+    "nominal_policy",
+    "__version__",
 ]
