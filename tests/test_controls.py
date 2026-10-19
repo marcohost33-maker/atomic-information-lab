@@ -160,3 +160,13 @@ def test_determinism_and_no_shared_state():
     Problem((Hypothesis(1.0, 1.0, 0.5),))
     b = solve(Problem(TWO_HYPOTHESES), horizon=3)
     assert a == b
+
+
+def test_ties_prefer_stop_then_catalogue_order():
+    """Documented tie rule: within TIE_TOL, STOP wins, then actions in catalogue order."""
+    pr = Problem((Hypothesis(0.05, 0.05, 0.025),), actions=DEFAULT_ACTIONS[:2], objective=Objective(energy_lambda=0.0))
+    d = solve(pr, horizon=2)
+    assert d.value == pytest.approx(0.25, abs=1e-15)
+    assert d.action == STOP
+    forced = solve(pr, horizon=2, allow_stop=False)
+    assert forced.action == "fast"  # all actions tie; first in catalogue order

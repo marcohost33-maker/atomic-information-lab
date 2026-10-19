@@ -231,7 +231,7 @@ class Problem:
                 raise ArithmeticError("non-finite or negative outcome probability")
             if z > 0:
                 out.append((y, z, tuple(v / z for v in joint)))
-        if abs(sum(masses) - 1.0) > _SUM_TOL:
+        if not abs(sum(masses) - 1.0) <= _SUM_TOL:  # NaN-safe: NaN fails this test
             raise ArithmeticError("outcome probabilities do not sum to one")
         return tuple(out)
 

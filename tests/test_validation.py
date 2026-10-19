@@ -186,3 +186,13 @@ def test_action_from_other_problem_rejected():
     pr = Problem()
     with pytest.raises(ValueError):
         pr.branches(pr.initial_belief(), Action("fast", 2.0, 0.12, 1.0))
+
+
+def test_mass_guard_is_nan_safe():
+    """Even with the per-branch finiteness check bypassed, a NaN total must not pass the mass guard."""
+    pr = Problem()
+    b = pr.initial_belief()
+    key = (0, "fast")
+    pr._kernel[key] = tuple(tuple(math.nan for _ in r) for r in pr._kernel[key])
+    with pytest.raises(ArithmeticError):
+        pr.branches(b, DEFAULT_ACTIONS[0])
