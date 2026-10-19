@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "atomic-information-lab: exact value of information and optional stopping in a synthetic two-state measurement model"
+type: software
+authors:
+  - name: "Coworker Research / Coworkerz"
+version: 0.1.0
+license: Apache-2.0
+abstract: >-
+  Small dependency-free Python reference for Bayes-optimal adaptive measurement
+  with an explicit STOP action in a synthetic discrete two-state model with
+  unknown sensor inversion, measurement back-action, finite model uncertainty
+  and a retention penalty. Verified against an independent exact oracle.
+  No hardware, instrument or quantum claim.
+keywords:
+  - POMDP
+  - optimal stopping
+  - value of information
+  - Brier score
