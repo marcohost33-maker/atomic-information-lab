@@ -164,12 +164,15 @@ def test_too_many_hypotheses():
         lambda b: (math.nan,) + b[1:],
         lambda b: (-0.25, 0.5) + b[2:],
     ],
+    ids=["short", "sum_too_big", "nan", "negative"],
 )
 def test_unnormalised_belief_rejected(mutate):
     pr = Problem()
     b = pr.initial_belief()
     pr.validate_belief(b)
     with pytest.raises(ValueError):
+        pr.validate_belief(mutate(b))
+    with pytest.raises((ValueError, ArithmeticError)):  # the branch-mass guard is a second layer
         solve(pr, mutate(b), horizon=1)
 
 

@@ -192,3 +192,35 @@ def test_package_defaults_match_oracle_transcription():
         == O.DEFAULT_ACTIONS
     )
     assert tuple((h.k01, h.k10, h.bias_flip) for h in TWO_HYPOTHESES) == ((0.07, 0.045, 0.025), (0.23, 0.16, 0.10))
+
+
+@pytest.mark.parametrize("name", ["default", "fast_dynamics", "two_models", "retention"])
+def test_posterior_marginals_match_oracle(name):
+    """Values are invariant under relabelling x <-> 1-x (uniform prior, symmetric loss), so a
+    value-only comparison cannot see swapped rates. Compare the posteriors themselves."""
+    pkg, orc = make(**CASES[name])
+    m = orc(True)
+    for n in range(3):
+        for seq in product([a[0] for a in m.actions], repeat=n):
+            for ys in product((0, 1), repeat=n):
+                fm, b = m.root(), pkg.initial_belief()
+                for s_, y in zip(seq, ys, strict=True):
+                    fm = m.step(fm, next(a for a in m.actions if a[0] == s_), y)
+                    match = [post for yy, _, post in pkg.branches(b, pkg.action(s_)) if yy == y]
+                    b = match[0] if match else None
+                    if b is None:
+                        break
+                tot = sum(fm)
+                if b is None or tot == 0:
+                    assert b is None and tot == 0
+                    continue
+                got = pkg.marginals(b)
+                p0 = sum(v for v, st in zip(fm, m.states, strict=True) if st[1] == 1) / tot
+                pt = sum(v for v, st in zip(fm, m.states, strict=True) if st[2] == 1) / tot
+                assert got["p_initial_one"] == pytest.approx(float(p0), abs=TOL)
+                assert got["p_current_one"] == pytest.approx(float(pt), abs=TOL)
+                theta = [
+                    sum(v for v, st in zip(fm, m.states, strict=True) if st[0] == k) / tot
+                    for k in range(len(m.components))
+                ]
+                assert pkg.model_posterior(b) == pytest.approx([float(t) for t in theta], abs=TOL)
