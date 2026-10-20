@@ -67,6 +67,8 @@ COUPLINGS = {
     "nested_import": "def _late():\n    from atomic_information_lab import solve\n    return solve\n",
     "foreign_module": "import json\n",
     "dunder_import": "_pkg = __import__('atomic' + '_information_lab')\n",
+    # Only the dynamic-name rule sees this one: nothing bound, no package string.
+    "lazy_dunder_import": "def _late(name):\n    return __import__(name)\n",
     "importlib": "import importlib\n",
     "package_string": "_NAME = 'atomic_information_lab.planner'\n",
 }
