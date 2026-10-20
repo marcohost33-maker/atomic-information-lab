@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -37,3 +38,58 @@ def test_oracle_detects_mutated_value_negative_control():
 def test_rejects_unbounded_or_invalid_campaign(params):
     with pytest.raises(ValueError):
         gate.certify(**params)
+
+
+# ---- oracle_independent_of_package is measured, not asserted ----------------
+ORACLE_SOURCE = Path(gate.oracle.__file__).read_text(encoding="utf-8")
+
+
+def _oracle_copy(tmp_path, source, name):
+    path = tmp_path / f"{name}.py"
+    path.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_oracle_independence_positive_control(tmp_path):
+    """An unchanged copy of the oracle passes; the flag in the result comes from that measurement."""
+    assert gate.oracle_independence(gate.oracle)[0] is True
+    copy = _oracle_copy(tmp_path, ORACLE_SOURCE, "oracle_copy_clean")
+    assert gate.oracle_independence(copy)[0] is True
+    assert gate.certify(cases=1, horizon=1, oracle_module=copy)["oracle_independent_of_package"] is True
+
+
+COUPLINGS = {
+    "top_import": "import atomic_information_lab\n",
+    "from_import": "from atomic_information_lab.model import Problem\n",
+    "nested_import": "def _late():\n    from atomic_information_lab import solve\n    return solve\n",
+    "foreign_module": "import json\n",
+    "dunder_import": "_pkg = __import__('atomic' + '_information_lab')\n",
+    "importlib": "import importlib\n",
+    "package_string": "_NAME = 'atomic_information_lab.planner'\n",
+}
+
+
+@pytest.mark.parametrize("coupling", COUPLINGS)
+def test_gate_refuses_an_oracle_coupled_to_the_package(tmp_path, coupling):
+    copy = _oracle_copy(tmp_path, ORACLE_SOURCE + "\n" + COUPLINGS[coupling], f"oracle_copy_{coupling}")
+    assert gate.oracle_independence(copy)[0] is False
+    with pytest.raises(RuntimeError, match="oracle not independent"):
+        gate.certify(cases=1, horizon=1, oracle_module=copy)
+
+
+def test_gate_refuses_package_object_injected_at_runtime(tmp_path):
+    copy = _oracle_copy(tmp_path, ORACLE_SOURCE, "oracle_copy_injected")
+    copy.solve = gate.solve  # source unchanged, namespace now holds package code
+    with pytest.raises(RuntimeError, match="oracle not independent"):
+        gate.certify(cases=1, horizon=1, oracle_module=copy)
+
+
+def test_cli_reports_dependent_oracle_as_fail(monkeypatch, capsys):
+    monkeypatch.setattr(gate, "oracle_independence", lambda _module: (False, "probe"))
+    monkeypatch.setattr("sys.argv", ["research_gate.py", "--cases", "1", "--horizon", "1"])
+    assert gate.main() == 2
+    out = json.loads(capsys.readouterr().out)
+    assert out["verdict"] == "fail" and "oracle not independent" in out["error"]

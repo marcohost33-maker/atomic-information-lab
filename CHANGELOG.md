@@ -35,6 +35,15 @@ locally; hosted CI on this change is still open.
 - **Breaking for callers passing their own beliefs:** probability-mass
   tolerance tightened from 1e-9 to 1e-12 (`validate_belief`, outcome masses in
   `branches`). Beliefs that sum to one only within 1e-9 are now rejected.
+- `scripts/research_gate.py`: `oracle_independent_of_package` was a constant
+  `True`; it is now measured on the oracle module actually used (imports
+  only from an allowlist — also inside functions —, no dynamic-import names,
+  package name in no non-docstring string, no package object bound in the
+  loaded module). A dependent oracle makes `certify` raise and the CLI print
+  `verdict: fail` with exit code 2. The output of a passing run is unchanged
+  (stdout SHA-256 identical before/after for the default run and for
+  `--horizon 3 --cases 4`). A run-time-assembled import inside a function is
+  out of reach of this check.
 
 ### Fixed
 - A NaN or ±inf option in a Bellman minimum now raises `ArithmeticError`
