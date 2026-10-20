@@ -1,5 +1,7 @@
 """R9 independent held-out policy-transfer checks at horizon 3, still synthetic."""
 
+import hashlib
+import json
 import math
 import random
 from dataclasses import replace
@@ -24,6 +26,19 @@ def cases():
         )
         for _ in range(8)
     ]
+
+
+# sha256 of json.dumps(cases(), separators=(",", ":")). Pins seed AND grid: the oracle
+# agrees with the package for any parameters, so without this pin dropping the
+# seed (random.Random()) kept every test green while the grid changed per run.
+CASES_SHA256 = "7289970d00c19792ecfc8684957eddc45761f6741a173cc80c05d6cf7c9bb8c2"
+
+
+def test_h3_case_grid_is_pinned():
+    grid = cases()
+    assert len(grid) == 8 and len(set(grid)) == 8
+    assert grid[0] == (0.034986, 0.120934, 0.031815, 0.010726)
+    assert hashlib.sha256(json.dumps(grid, separators=(",", ":")).encode()).hexdigest() == CASES_SHA256
 
 
 def _scenario(k01, k10, bias, lam):

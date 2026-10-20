@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import random
 from dataclasses import replace
 
@@ -28,6 +30,18 @@ def make_cases():
         )
         for _ in range(CASES)
     ]
+
+
+# sha256 of json.dumps(make_cases(), separators=(",", ":")): pins SEED and the grid
+# (the oracle agrees for any grid, so nothing else notices a dropped seed).
+CASES_SHA256 = "280447b7458d448c5e03b27171e7ed7435c4e9e79e5e4017e0be9ef2a741fce2"
+
+
+def test_r8_case_grid_is_pinned():
+    grid = make_cases()
+    assert len(grid) == CASES == 20 and len(set(grid)) == CASES
+    assert grid[0] == (0.194011, 0.149795, 0.049264, 0.014332)
+    assert hashlib.sha256(json.dumps(grid, separators=(",", ":")).encode()).hexdigest() == CASES_SHA256
 
 
 def _problem(k01, k10, bias, lam):

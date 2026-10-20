@@ -49,6 +49,10 @@ locally; hosted CI on this change is still open.
   a time) and require the shared check `tests/_transfer_check.py`, which the
   positive transfer tests also use, to reject exactly that field; plus a
   within-tolerance (1e-12) acceptance control and a NaN/±inf fail-closed test.
+- Test-only: removing the seed of the R8/R9 case grids kept every test green
+  (the oracle agrees for any grid). The grids are now pinned by SHA-256, and
+  the research-gate test pins `configs_sha256` for seed 20261020 and checks
+  that a different seed changes it.
 
 ### Removed
 - `tests/test_ail_r2_external_replay.py` from the R9 delivery: it was a
