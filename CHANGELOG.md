@@ -44,9 +44,12 @@ locally; hosted CI on this change is still open.
   policy evaluations and open-loop values fail closed with `ArithmeticError`
   instead of losing silently against STOP.
 
+### Removed
+- `tests/test_ail_r2_external_replay.py` from the R9 delivery: it was a
+  byte-identical copy of `tests/test_ail_hardening_v2.py` (git blob
+  `cbdefc3`) and counted 18 tests twice. The suite counts 298, not 316.
+
 ### Known limitations
-- `tests/test_ail_r2_external_replay.py` is a byte-identical copy of
-  `tests/test_ail_hardening_v2.py` (18 tests counted twice).
 - The sdist does not ship `tests/_oracle.py` or `scripts/`, so its tests do
   not collect (already true for the oracle before this change).
 
