@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from itertools import product
+from math import isfinite
 
 from .model import STOP, Action, Problem
 
@@ -63,7 +64,9 @@ def _check_horizon(horizon: int) -> None:
 
 
 def _pick(options: Sequence[tuple[float, str]]) -> Decision:
-    """options are listed in preference order; keep the first unless beaten by > TIE_TOL."""
+    """Return a finite minimum; never silently ignore NaN or overflowed options."""
+    if not options or any(not isfinite(v) for v, _ in options):
+        raise ArithmeticError("non-finite or empty Bellman choice set")
     best_v, best_a = options[0]
     for v, a in options[1:]:
         if v < best_v - TIE_TOL:
@@ -75,6 +78,8 @@ def _action_value(problem: Problem, belief, action: Action, horizon: int, allow_
     value = problem.step_cost(action)
     for _, p, post in problem.branches(belief, action):
         value += p * _solve(problem, post, horizon - 1, allow_stop).value
+        if not isfinite(value):
+            raise ArithmeticError("non-finite Bellman recursion value")
     return value
 
 
@@ -119,7 +124,10 @@ def evaluate_policy(
             t += p * ct
         return v, s, e, t
 
-    return PolicyStats(*rec(belief, (), horizon))
+    values = rec(belief, (), horizon)
+    if any(not isfinite(v) for v in values):
+        raise ArithmeticError("non-finite policy evaluation")
+    return PolicyStats(*values)
 
 
 def optimal_policy(problem: Problem, *, allow_stop: bool = True) -> Policy:
@@ -155,7 +163,10 @@ def open_loop_value(problem: Problem, sequence: Sequence[str], belief: Sequence[
         a = acts[k]
         return problem.step_cost(a) + sum(p * rec(post, k + 1) for _, p, post in problem.branches(b, a))
 
-    return rec(belief, 0)
+    value = rec(belief, 0)
+    if not isfinite(value):
+        raise ArithmeticError("non-finite open-loop evaluation")
+    return value
 
 
 def best_open_loop(

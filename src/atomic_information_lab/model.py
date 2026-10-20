@@ -43,7 +43,7 @@ __all__ = [
 STOP = "stop"
 MAX_HYPOTHESES = 4
 MAX_ACTIONS = 4
-_SUM_TOL = 1e-9
+_SUM_TOL = 1e-12
 _LOCAL = tuple(product((0, 1), repeat=3))  # (x0, x, b) inside one hypothesis
 
 
@@ -255,7 +255,13 @@ class Problem:
         m = self.marginals(belief)
         o = self.objective
         p0, pt = m["p_initial_one"], m["p_current_one"]
-        return o.alpha * p0 * (1.0 - p0) + (1.0 - o.alpha) * pt * (1.0 - pt) + o.retention_weight * m["p_changed"]
+        risk = o.alpha * p0 * (1.0 - p0) + (1.0 - o.alpha) * pt * (1.0 - pt) + o.retention_weight * m["p_changed"]
+        if not isfinite(risk):
+            raise ArithmeticError("non-finite terminal risk")
+        return risk
 
     def step_cost(self, action: Action) -> float:
-        return self.objective.energy_lambda * action.energy
+        cost = self.objective.energy_lambda * action.energy
+        if not isfinite(cost):
+            raise ArithmeticError("non-finite action cost")
+        return cost
