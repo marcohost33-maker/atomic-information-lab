@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pytest
 from _oracle import Model
-from _transfer_check import FIELDS, oracle_reference, transfer_mismatches
+from _transfer_check import oracle_reference, transfer_mismatches
 
 from atomic_information_lab import Hypothesis, Objective, Problem, robustness
 from atomic_information_lab.planner import nominal_policy
@@ -45,14 +45,19 @@ def test_h3_transfer_independent_oracle(k01, k10, bias, lam):
 # could not see (+1e-10 on true_optimal_value left it green).
 FORGERY = 1e-10
 
+# Where each reported field comes from inside the package. Deliberately NOT
+# _transfer_check.FIELDS: if the check silently dropped a field, a control
+# parametrised over FIELDS would lose that case with it and stay green.
+SOURCES = {
+    "nominal_policy_under_truth": ("evaluate_policy", "value"),
+    "expected_steps": ("evaluate_policy", "expected_steps"),
+    "true_optimal_value": ("solve", "value"),
+}
+
 
 def _forge(monkeypatch, field, delta):
     """Inject ``delta`` into ONE reported field inside the package, upstream of the report."""
-    name, attr = {
-        "true_optimal_value": ("solve", "value"),
-        "nominal_policy_under_truth": ("evaluate_policy", "value"),
-        "expected_steps": ("evaluate_policy", "expected_steps"),
-    }[field]
+    name, attr = SOURCES[field]
     real = getattr(robustness, name)
 
     def forged(*args, **kwargs):
@@ -62,7 +67,7 @@ def _forge(monkeypatch, field, delta):
     monkeypatch.setattr(robustness, name, forged)
 
 
-@pytest.mark.parametrize("field", FIELDS)
+@pytest.mark.parametrize("field", SOURCES)
 def test_h3_negative_control_detects_value_bias(monkeypatch, field):
     """A forged package value must be rejected by the SAME check the positive tests use."""
     params = cases()[0]
@@ -75,17 +80,19 @@ def test_h3_negative_control_detects_value_bias(monkeypatch, field):
     assert transfer_mismatches(forged, reference) == [field]
 
 
-@pytest.mark.parametrize("field", FIELDS)
+@pytest.mark.parametrize("field", SOURCES)
 def test_h3_check_accepts_deviation_inside_tolerance(monkeypatch, field):
     """Legitimate input passes: a deviation well inside 3e-11 is not a mismatch."""
     params = cases()[0]
+    clean, _ = _scenario(*params)
     _forge(monkeypatch, field, 1e-12)
     measured, reference = _scenario(*params)
+    assert measured[field] != clean[field]  # the deviation reached the report
     assert transfer_mismatches(measured, reference) == []
 
 
 @pytest.mark.parametrize("bad", [math.nan, math.inf, -math.inf])
 def test_transfer_check_fails_closed_on_non_finite(bad):
-    reference = dict.fromkeys(FIELDS, 0.25)
-    for field in FIELDS:
+    reference = dict.fromkeys(SOURCES, 0.25)
+    for field in SOURCES:
         assert transfer_mismatches({**reference, field: bad}, reference) == [field]
