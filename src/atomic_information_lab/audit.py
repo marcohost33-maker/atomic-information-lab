@@ -3,10 +3,13 @@
 This checks Bellman value versus the *same implementation family* evaluated
 as a policy. It is NOT an independent mathematical oracle or field validation.
 """
+
 from __future__ import annotations
+
 from math import isfinite
+
 from .model import Problem
-from .planner import TIE_TOL, solve, evaluate_policy, optimal_policy, best_open_loop
+from .planner import TIE_TOL, best_open_loop, evaluate_policy, optimal_policy, solve
 
 
 def self_audit(problem: Problem, horizon: int) -> dict:
@@ -19,10 +22,19 @@ def self_audit(problem: Problem, horizon: int) -> dict:
     st = evaluate_policy(problem, optimal_policy(problem), horizon)
     fixed, sequence = best_open_loop(problem, horizon)
     forced = solve(problem, horizon=horizon, allow_stop=False).value
-    prev = solve(problem, horizon=max(0, horizon-1)).value
+    prev = solve(problem, horizon=max(0, horizon - 1)).value
     reconstructed = st.expected_terminal_loss + problem.objective.energy_lambda * st.expected_energy
-    vals = (d.value, st.value, fixed, forced, prev, reconstructed,
-            st.expected_steps, st.expected_energy, st.expected_terminal_loss)
+    vals = (
+        d.value,
+        st.value,
+        fixed,
+        forced,
+        prev,
+        reconstructed,
+        st.expected_steps,
+        st.expected_energy,
+        st.expected_terminal_loss,
+    )
     if any(not isfinite(v) for v in vals):
         raise ArithmeticError("self-audit detected non-finite value")
     # Never let a huge, unrelated forced-policy value inflate the tolerance
@@ -54,7 +66,7 @@ def self_audit(problem: Problem, horizon: int) -> dict:
         "expected_steps": st.expected_steps,
         "expected_energy": st.expected_energy,
         "expected_terminal_loss": st.expected_terminal_loss,
-        "max_residual": max(abs(d.value-st.value), abs(st.value-reconstructed)),
+        "max_residual": max(abs(d.value - st.value), abs(st.value - reconstructed)),
         "tolerance": tol,
         "verdict": "internal_consistency_pass",
     }
