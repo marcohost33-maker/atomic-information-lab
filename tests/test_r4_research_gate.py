@@ -92,6 +92,10 @@ def test_gate_refuses_package_object_injected_at_runtime(tmp_path):
 def test_cli_reports_dependent_oracle_as_fail(monkeypatch, capsys):
     monkeypatch.setattr(gate, "oracle_independence", lambda _module: (False, "probe"))
     monkeypatch.setattr("sys.argv", ["research_gate.py", "--cases", "1", "--horizon", "1"])
-    assert gate.main() == 2
+    try:
+        rc = gate.main()
+    except RuntimeError as exc:  # leaked instead of being reported as verdict fail
+        rc = f"uncaught {exc!r}"
+    assert rc == 2
     out = json.loads(capsys.readouterr().out)
     assert out["verdict"] == "fail" and "oracle not independent" in out["error"]
