@@ -43,6 +43,12 @@ locally; hosted CI on this change is still open.
 - Overflowing action costs and non-finite terminal risks, recursion values,
   policy evaluations and open-loop values fail closed with `ArithmeticError`
   instead of losing silently against STOP.
+- Test-only: the R8/R9 negative controls were inline comparisons (forged
+  value vs. oracle) and stayed green when the package's `true_optimal_value`
+  was off by +1e-10. They now forge the value inside the package (one field at
+  a time) and require the shared check `tests/_transfer_check.py`, which the
+  positive transfer tests also use, to reject exactly that field; plus a
+  within-tolerance (1e-12) acceptance control and a NaN/±inf fail-closed test.
 
 ### Removed
 - `tests/test_ail_r2_external_replay.py` from the R9 delivery: it was a

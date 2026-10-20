@@ -1,11 +1,14 @@
 """R9 independent held-out policy-transfer checks at horizon 3, still synthetic."""
 
+import math
 import random
+from dataclasses import replace
 
 import pytest
 from _oracle import Model
+from _transfer_check import FIELDS, oracle_reference, transfer_mismatches
 
-from atomic_information_lab import Hypothesis, Objective, Problem
+from atomic_information_lab import Hypothesis, Objective, Problem, robustness
 from atomic_information_lab.planner import nominal_policy
 from atomic_information_lab.robustness import policy_transfer_report
 
@@ -23,30 +26,66 @@ def cases():
     ]
 
 
-@pytest.mark.parametrize("k01,k10,bias,lam", cases())
-def test_h3_transfer_independent_oracle(k01, k10, bias, lam):
+def _scenario(k01, k10, bias, lam):
     nominal = Problem(hypotheses=(Hypothesis(0.07, 0.045, 0.025),), objective=Objective(energy_lambda=0.012))
     truth = Problem(hypotheses=(Hypothesis(k01, k10, bias),), objective=Objective(energy_lambda=lam))
-    result = policy_transfer_report(nominal, [truth], 3)["scenarios"][0]
-    oracle = Model(((1.0, k01, k10, bias),), lam=lam)
-    pick = nominal_policy(nominal)
+    measured = policy_transfer_report(nominal, [truth], 3)["scenarios"][0]
+    reference = oracle_reference(Model(((1.0, k01, k10, bias),), lam=lam), nominal_policy(nominal), 3)
+    return measured, reference
 
-    def frozen_policy(_message, history, h):
-        name = pick((), history, h)
-        return None if name == "stop" else next(a for a in oracle.actions if a[0] == name)
 
-    val, steps = oracle.policy_value(oracle.root(), 3, frozen_policy)
-    optimum = oracle.value(oracle.root(), 3)
-    assert abs(result["nominal_policy_under_truth"] - float(val)) <= 3e-11
-    assert abs(result["expected_steps"] - float(steps)) <= 3e-11
-    assert abs(result["true_optimal_value"] - float(optimum)) <= 3e-11
+@pytest.mark.parametrize("k01,k10,bias,lam", cases())
+def test_h3_transfer_independent_oracle(k01, k10, bias, lam):
+    result, reference = _scenario(k01, k10, bias, lam)
+    assert transfer_mismatches(result, reference) == []
     assert result["signed_regret"] >= -result["tolerance"]
 
 
-def test_h3_negative_control_detects_value_bias():
-    k01, k10, bias, lam = cases()[0]
-    nominal = Problem(hypotheses=(Hypothesis(0.07, 0.045, 0.025),), objective=Objective(energy_lambda=0.012))
-    truth = Problem(hypotheses=(Hypothesis(k01, k10, bias),), objective=Objective(energy_lambda=lam))
-    val = policy_transfer_report(nominal, [truth], 3)["scenarios"][0]["true_optimal_value"]
-    oracle = Model(((1.0, k01, k10, bias),), lam=lam)
-    assert abs((val + 1e-5) - float(oracle.value(oracle.root(), 3))) > 3e-11
+# Smallest forgery above the 3e-11 tolerance that the earlier inline control
+# could not see (+1e-10 on true_optimal_value left it green).
+FORGERY = 1e-10
+
+
+def _forge(monkeypatch, field, delta):
+    """Inject ``delta`` into ONE reported field inside the package, upstream of the report."""
+    name, attr = {
+        "true_optimal_value": ("solve", "value"),
+        "nominal_policy_under_truth": ("evaluate_policy", "value"),
+        "expected_steps": ("evaluate_policy", "expected_steps"),
+    }[field]
+    real = getattr(robustness, name)
+
+    def forged(*args, **kwargs):
+        result = real(*args, **kwargs)
+        return replace(result, **{attr: getattr(result, attr) + delta})
+
+    monkeypatch.setattr(robustness, name, forged)
+
+
+@pytest.mark.parametrize("field", FIELDS)
+def test_h3_negative_control_detects_value_bias(monkeypatch, field):
+    """A forged package value must be rejected by the SAME check the positive tests use."""
+    params = cases()[0]
+    clean, reference = _scenario(*params)
+    assert transfer_mismatches(clean, reference) == []  # positive control: unforged passes
+
+    _forge(monkeypatch, field, FORGERY)
+    forged, _ = _scenario(*params)
+    assert forged[field] != clean[field]  # the forgery reached the report
+    assert transfer_mismatches(forged, reference) == [field]
+
+
+@pytest.mark.parametrize("field", FIELDS)
+def test_h3_check_accepts_deviation_inside_tolerance(monkeypatch, field):
+    """Legitimate input passes: a deviation well inside 3e-11 is not a mismatch."""
+    params = cases()[0]
+    _forge(monkeypatch, field, 1e-12)
+    measured, reference = _scenario(*params)
+    assert transfer_mismatches(measured, reference) == []
+
+
+@pytest.mark.parametrize("bad", [math.nan, math.inf, -math.inf])
+def test_transfer_check_fails_closed_on_non_finite(bad):
+    reference = dict.fromkeys(FIELDS, 0.25)
+    for field in FIELDS:
+        assert transfer_mismatches({**reference, field: bad}, reference) == [field]
