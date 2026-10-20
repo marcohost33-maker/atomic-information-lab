@@ -1,11 +1,11 @@
 """Independent TEST-ONLY oracle evaluates a frozen nominal policy under truth."""
 
 import pytest
+from _oracle import Model
 
 from atomic_information_lab import Hypothesis, Objective, Problem
 from atomic_information_lab.planner import nominal_policy
 from atomic_information_lab.robustness import policy_transfer_report
-from tests._oracle import Model
 
 
 @pytest.mark.parametrize(

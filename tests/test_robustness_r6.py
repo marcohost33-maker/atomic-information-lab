@@ -5,10 +5,10 @@ from __future__ import annotations
 import math
 
 import pytest
+from _oracle import Model
 
 from atomic_information_lab import Hypothesis, Objective, Problem
 from atomic_information_lab.robustness import policy_transfer_report
-from tests._oracle import Model
 
 
 def _p(k01, k10, lam=0.012):
