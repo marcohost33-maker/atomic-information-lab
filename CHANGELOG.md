@@ -68,9 +68,13 @@ locally; hosted CI on this change is still open.
   byte-identical copy of `tests/test_ail_hardening_v2.py` (git blob
   `cbdefc3`) and counted 18 tests twice. The suite counts 298, not 316.
 
-### Known limitations
-- The sdist does not ship `tests/_oracle.py` or `scripts/`, so its tests do
-  not collect (already true for the oracle before this change).
+### Packaging
+- `MANIFEST.in`: the sdist now ships `tests/` (incl. `_oracle.py`,
+  `_transfer_check.py`), `scripts/`, `docs/`, `CHANGELOG.md` and
+  `CITATION.cff`. Before, its tests did not collect (7 collection errors,
+  exit code 2); now pytest inside the unpacked sdist collects and passes 325
+  tests (Windows, CPython 3.12). The wheel is unchanged (package modules
+  only). `tests/test_packaging_manifest.py` checks the rule on every run.
 
 ## [0.1.0] - not released
 
