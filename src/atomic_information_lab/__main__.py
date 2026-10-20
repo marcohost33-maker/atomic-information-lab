@@ -39,6 +39,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--energy-lambda", type=_finite_float, default=0.012)
     sp.add_argument("--retention-weight", type=_finite_float, default=0.0)
     sp.add_argument("--forced", action="store_true", help="no STOP before the horizon")
+    sp.add_argument("--self-audit", action="store_true", help="report internal consistency checks (NOT an independent oracle)")
     return ap
 
 
@@ -65,6 +66,11 @@ def main(argv: list[str] | None = None) -> int:
             )
             d = solve(pr, horizon=args.horizon, allow_stop=not args.forced)
             out = {"value": d.value, "first_action": d.action, "horizon": args.horizon, "forced": args.forced}
+            if args.self_audit:
+                if args.forced:
+                    raise ValueError("--self-audit is defined for optional-stop only; omit --forced")
+                from .audit import self_audit
+                out["self_audit"] = self_audit(pr, args.horizon)
     except (ValueError, ArithmeticError) as exc:
         print(f"error: {exc} (horizon range 0..{MAX_HORIZON})", file=sys.stderr)
         return 2
