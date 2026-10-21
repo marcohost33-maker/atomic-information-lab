@@ -38,6 +38,8 @@ PLANNER = "atomic_information_lab/planner.py"
 METAMORPHIC = "tests/test_metamorphic.py"
 SIMULATION = "tests/test_generative_simulation.py"
 CROSS = "tests/test_policy_cross_evaluation.py"
+RETENTION_FILE = "atomic_information_lab/retention.py"
+RETENTION = "tests/test_retention.py"
 
 # id: (file, old, new, what it breaks, {suite: expected verdict})
 MUTANTS = {
@@ -96,6 +98,41 @@ MUTANTS = {
         "return _solve(problem, b, max(h - 1, 1), allow_stop).action",
         "the decision rule plans one step short; solve() values are unchanged",
         {CROSS: "relation"},
+    ),
+    "M9_pathwise_limit_loosened": (
+        RETENTION_FILE,
+        "    if pc <= delta:\n",
+        "    if pc <= delta + 0.02:\n",
+        "the hard limit admits stops up to 2 percentage points above delta",
+        {RETENTION: "relation"},
+    ),
+    "M10_mixture_weight_off": (
+        RETENTION_FILE,
+        "q = (delta - hi[2]) / (lo[2] - hi[2])",
+        "q = 0.9 * (delta - hi[2]) / (lo[2] - hi[2])",
+        "the randomised policy under-uses the allowed risk (still feasible, no longer optimal)",
+        {RETENTION: "relation"},
+    ),
+    "M11_multiplier_ignored_at_stop": (
+        RETENTION_FILE,
+        "best = (loss + mu * pc, loss, pc, STOP)",
+        "best = (loss, loss, pc, STOP)",
+        "the Lagrangian forgets the retention price when stopping (the multiplier search then refuses)",
+        {RETENTION: "guard"},
+    ),
+    "M12_pareto_front_collapsed": (
+        RETENTION_FILE,
+        "sorted(points, key=lambda t: (t[0], t[1]))",
+        "sorted(points, key=lambda t: (t[1], t[0]))",
+        "the Pareto pruning keeps only the cheapest point (the solver then refuses as infeasible)",
+        {RETENTION: "guard"},
+    ),
+    "M13_pareto_pruning_too_coarse": (
+        RETENTION_FILE,
+        "if best_j is None or j < best_j - TIE_TOL:",
+        "if best_j is None or j < best_j - 0.01:",
+        "the Pareto pruning drops plans less than 0.01 cheaper: feasible but suboptimal deterministic values",
+        {RETENTION: "relation"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")
