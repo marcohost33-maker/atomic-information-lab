@@ -99,3 +99,63 @@ def test_cli_reports_dependent_oracle_as_fail(monkeypatch, capsys):
     assert rc == 2
     out = json.loads(capsys.readouterr().out)
     assert out["verdict"] == "fail" and "oracle not independent" in out["error"]
+
+
+# ---- policy optimality is a measurement of its own -------------------------
+def _flip_root_decision(pkg):
+    """Optimal everywhere except at the root, where it takes STOP <-> first action."""
+    opt = gate.optimal_policy(pkg)
+
+    def choose(belief, history, h):
+        best = opt(belief, history, h)
+        if history:
+            return best
+        return pkg.actions[0].name if best == gate.STOP else gate.STOP
+
+    return choose
+
+
+def test_claims_are_reported_separately():
+    out = gate.certify(cases=3, horizon=2, seed=20261020)
+    assert out["schema"] == "ail-independent-oracle-sweep-r4-v2"
+    assert out["claims"] == {
+        "value_agreement": "measured",
+        "policy_optimality_on_grid": "measured",
+        "specification_independence": "not_measured",
+        "physical_validity": "not_claimed",
+    }
+    assert out["policy_comparisons"] == 3 * 2
+    assert out["max_abs_policy_gap"] <= out["abs_tolerance"]
+
+
+@pytest.mark.parametrize(
+    "mutant",
+    [lambda pkg: gate.optimal_policy(pkg, allow_stop=False), _flip_root_decision],
+    ids=["never_stops", "wrong_root_decision"],
+)
+def test_wrong_policy_with_correct_values_is_rejected(mutant):
+    """The values stay correct (solve_fn untouched), so only the policy measurement can see this."""
+    gate.certify(cases=8, horizon=2, seed=20261020)  # positive control on the same grid
+    with pytest.raises(ArithmeticError, match="policy not optimal under the oracle"):
+        gate.certify(cases=8, horizon=2, seed=20261020, policy_fn=mutant)
+
+
+def test_package_impossible_but_oracle_reachable_observation_fails_closed():
+    out = gate.certify(cases=1, horizon=1, seed=20261020)
+    assert out["verdict"] == "pass"
+
+    class Blind(gate.Problem):
+        def branches(self, belief, action):
+            return tuple(b for b in super().branches(belief, action) if b[0] == 0)
+
+    spec = gate.generated_case(gate.random.Random(20261020))
+    pkg = Blind(
+        tuple(gate.Hypothesis(k01, k10, f) for _, k01, k10, f in spec["hyps"]),
+        tuple(w for w, *_ in spec["hyps"]),
+        tuple(gate.Action(*a) for a in spec["actions"]),
+        gate.Objective(spec["alpha"], spec["lam"], spec["beta"]),
+    )
+    model = gate.oracle.Model(spec["hyps"], spec["actions"], spec["lam"], spec["alpha"], spec["beta"])
+    policy = gate.oracle_side_policy(pkg, model, lambda b, hist, h: pkg.actions[0].name)
+    with pytest.raises(ArithmeticError, match="impossible"):
+        model.policy_value(model.root(), 2, policy)

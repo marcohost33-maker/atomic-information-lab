@@ -4,6 +4,20 @@ The independent implementation is tests/_oracle.py, which shares no model
 source with the package. Its CTMC kernel is produced by uniformisation (float
 series), then the conditional policy DP uses rational Fractions in exact mode.
 It does NOT constitute an instrument, calibration, or hardware verification.
+
+Two separate measurements, reported separately in ``claims``:
+
+* value agreement -- the package's optimal value equals the oracle's optimal
+  value (with and without STOP);
+* policy optimality -- the package's decision rule (its own belief filter plus
+  its own Bellman choice) is replayed inside the ORACLE's dynamics and scored
+  by the oracle; its score must equal the oracle's optimum (with STOP; the
+  forced variant is covered in tests/test_policy_cross_evaluation.py). Equal values alone
+  would not show this: a wrong decision with a correctly computed value
+  elsewhere stays invisible to a value comparison.
+
+Not measured: independence of the model *specification* (the oracle is a
+second transcription of the same equations) and any physical validity.
 """
 
 from __future__ import annotations
@@ -25,9 +39,15 @@ sys.path.insert(0, str(ROOT / "tests"))
 # Imports below need the sys.path entries above (script run from a checkout).
 import _oracle as oracle  # noqa: E402
 
-from atomic_information_lab import Action, Hypothesis, Objective, Problem, solve  # noqa: E402
+from atomic_information_lab import STOP, Action, Hypothesis, Objective, Problem, optimal_policy, solve  # noqa: E402
 
-SCHEMA = "ail-independent-oracle-sweep-r4-v1"
+SCHEMA = "ail-independent-oracle-sweep-r4-v2"  # v2: adds claims, policy_comparisons, max_abs_policy_gap
+CLAIMS = {
+    "value_agreement": "measured",
+    "policy_optimality_on_grid": "measured",
+    "specification_independence": "not_measured",
+    "physical_validity": "not_claimed",
+}
 ABS_TOL = 3e-11
 PACKAGE = "atomic_information_lab"
 # Allowlist, not a denylist: anything else the oracle imports counts as a
@@ -107,7 +127,37 @@ def generated_case(rng: random.Random) -> dict:
     }
 
 
-def certify(cases: int = 8, horizon: int = 2, seed: int = 20261020, *, solve_fn=solve, oracle_module=oracle) -> dict:
+def oracle_side_policy(pkg: Problem, oracle_model, choose):
+    """Wrap the package decision rule ``choose(belief, history, h)`` for ``oracle_model.policy_value``.
+
+    The package belief is rebuilt from the observation history with the
+    package's own filter, so the oracle scores the complete package pipeline.
+    An observation the oracle reaches but the package calls impossible fails
+    closed.
+    """
+
+    def policy(_message, history, h):
+        belief = pkg.initial_belief()
+        for name, y in history:
+            match = [post for yy, _, post in pkg.branches(belief, pkg.action(name)) if yy == y]
+            if not match:
+                raise ArithmeticError(f"package calls an oracle-reachable observation impossible: {history}")
+            belief = match[0]
+        name = choose(belief, history, h)
+        return None if name == STOP else next(a for a in oracle_model.actions if a[0] == name)
+
+    return policy
+
+
+def certify(
+    cases: int = 8,
+    horizon: int = 2,
+    seed: int = 20261020,
+    *,
+    solve_fn=solve,
+    policy_fn=optimal_policy,
+    oracle_module=oracle,
+) -> dict:
     if type(cases) is not int or not 1 <= cases <= 32:
         raise ValueError("cases must be integer in 1..32")
     if type(horizon) is not int or not 0 <= horizon <= 3:
@@ -120,7 +170,9 @@ def certify(cases: int = 8, horizon: int = 2, seed: int = 20261020, *, solve_fn=
         raise RuntimeError(f"oracle not independent of package: {why}")
     rng = random.Random(seed)
     max_residual = 0.0
+    max_policy_gap = 0.0
     tested = 0
+    policy_tested = 0
     configs = []
     for case_idx in range(cases):
         spec = generated_case(rng)
@@ -148,11 +200,21 @@ def certify(cases: int = 8, horizon: int = 2, seed: int = 20261020, *, solve_fn=
                         f"oracle disagreement: case={case_idx} h={h} "
                         f"forced={forced} observed={observed} oracle={reference} residual={residual}"
                     )
+        pkg_policy = oracle_side_policy(pkg, oracle_model, policy_fn(pkg))
+        for h in range(1, horizon + 1):
+            optimum = oracle_model.value(oracle_model.root(), h)
+            scored, _ = oracle_model.policy_value(oracle_model.root(), h, pkg_policy)
+            gap = float(scored - optimum)  # >= 0 up to the tie tolerance if the policy is optimal
+            if not math.isfinite(gap) or abs(gap) > ABS_TOL:
+                raise ArithmeticError(f"policy not optimal under the oracle: case={case_idx} h={h} gap={gap}")
+            max_policy_gap = max(max_policy_gap, abs(gap))
+            policy_tested += 1
         configs.append(spec)
     canonical = json.dumps(configs, sort_keys=True, separators=(",", ":")).encode()
     return {
         "schema": SCHEMA,
         "claim_scope": "synthetic_classical_two_state_only",
+        "claims": dict(CLAIMS),
         "oracle_independent_of_package": independent,  # measured above, fail-closed if False
         "kernel_oracle_method": "uniformisation_float_then_rational_DP",
         "seed": seed,
@@ -161,6 +223,8 @@ def certify(cases: int = 8, horizon: int = 2, seed: int = 20261020, *, solve_fn=
         "comparisons": tested,
         "configs_sha256": hashlib.sha256(canonical).hexdigest(),
         "max_abs_residual": max_residual,
+        "policy_comparisons": policy_tested,
+        "max_abs_policy_gap": max_policy_gap,
         "abs_tolerance": ABS_TOL,
         "verdict": "pass",
     }
