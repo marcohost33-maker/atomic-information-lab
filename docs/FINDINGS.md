@@ -66,7 +66,16 @@ against the oracle (mutation W15).
 | N-10 | Three CLI subprocess tests depended on an installed package. | fixed | `PYTHONPATH` as in `test_cli.py` |
 | N-11 | A claimed "6/6 mutants killed by metamorphic relations" included one mutant caught only by the mass guard. | REFUTED (own claim) | probe classifies `relation` vs `guard`; mutant replaced |
 
-## 5. Not checked
+## 5. R13/P0 retention limit (2026-10-21, same-family; cross-family review pending)
+
+| ID | Finding | Verdict | Evidence |
+|---|---|---|---|
+| N-12 | The unconstrained optimum corrupts the stored bit it is asked about: `P(x_T != x0) = 0.127` (`h = 3`) and `0.135` (`h = 4`); with a limit of 8 % it stops above the limit in 65 % of the runs. The headline risk 0.146 is therefore an optimistic figure as soon as retention matters. | new | `solve_retention(...).unconstrained_*`, README table |
+| N-13 | A hard (pathwise) limit is expensive: for `delta <= 0.08` no reading is admissible (value 0.25 = STOP). | new | exhaustive search `h = 3`, independent exact DP `h = 4` |
+| N-14 | Under an average (expected) limit, randomising between two policies is strictly better than every deterministic policy (e.g. 0.173 vs 0.211 at `delta = 0.08`, `h = 4`); the feasible side of the Lagrangian mixture is NOT the best deterministic policy (gap up to 0.058 in the tested grid). | new | Pareto-front DP vs exhaustive deterministic optimum |
+| N-15 | The R12 retention weight is exactly the Lagrange multiplier of F29: the expected-limit optimum is the R12 planner with weight `beta + mu*`, mixed. | CONFIRMED | duality gap 0 on all tested limits |
+
+## 6. Not checked
 
 R6 figures, rounds R1–R7, the literature list of the earlier report, any
 statement about other projects, Python < 3.12.

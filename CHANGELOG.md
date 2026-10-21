@@ -5,6 +5,34 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Added -- retention limit (roadmap R13/P0, formula F29)
+- `atomic_information_lab.retention`: planning under `P(x != x0) <= delta`,
+  `solve_retention(problem, delta, horizon, mode)` with two readings:
+  `pathwise` (every STOP has posterior `P(x != x0 | data) <= delta`; exact DP
+  with inadmissible states) and `expected` (`P(x_T != x0) <= delta`; exact
+  Lagrangian breakpoint search -- the multiplier shifts the R12 retention
+  weight --, mixture of at most two deterministic policies, dual bound and
+  duality gap). Also: best deterministic policy under the expected limit
+  (exact Pareto-front DP, `best_deterministic_retention`), best fixed
+  sequence under the limit (`best_open_loop_retention`),
+  `retention_profile` (value, `P(x_T != x0)`, probability of stopping above
+  `delta`) for any policy, `pathwise_policy`, `lagrangian_policy`. Every
+  result reports what the unconstrained optimum would have done (value,
+  retention risk, probability of violating the limit). Infeasible starts and
+  bad inputs fail closed (`ValueError`); a broken multiplier search raises.
+- CLI: `solve --retention-limit DELTA [--retention-mode pathwise|expected]`,
+  `reproduce --table retention`.
+- `tests/test_retention.py`: exhaustive search over all 7 204 deterministic
+  policies in rational arithmetic (`h = 3`, six cases, nine limits), lower
+  convex hull for the randomised optimum, independent exact DP on the
+  oracle's messages at `h = 4`; mixture, certificate, ordering, monotonicity,
+  zero-limit and static-model controls, fail-closed tests, README table
+  pinned to the code. Mutation probe gains M9-M13: loosened pathwise limit,
+  wrong mixture weight and too coarse Pareto pruning are killed by the
+  tests' assertions; multiplier ignored at STOP and a collapsed Pareto front
+  are refused loudly by the solver's own guards (bracket failure,
+  "infeasible") instead of returning a wrong number.
+
 Integrates the cumulative patch of an external cross-family review
 (rounds R2–R9, patch SHA-256 `f47af938…b7c01a4`). Scope is unchanged:
 **synthetic classical two-state models only, no worst-case guarantee, no
