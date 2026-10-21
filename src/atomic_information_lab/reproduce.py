@@ -6,8 +6,11 @@ from dataclasses import replace
 
 from .model import DEFAULT_ACTIONS, DEFAULT_HYPOTHESIS, TWO_HYPOTHESES, Action, Objective, Problem
 from .planner import best_open_loop, evaluate_policy, greedy_policy, nominal_policy, optimal_policy, solve
+from .retention import best_open_loop_retention, solve_retention
 
-__all__ = ["single_model_table", "two_model_table", "two_model_sensitivity"]
+__all__ = ["single_model_table", "two_model_table", "two_model_sensitivity", "retention_table"]
+
+RETENTION_DELTAS = (0.0, 0.01, 0.05, 0.08, 0.1, 0.13, 1.0)
 
 
 def single_model_table(max_horizon: int = 5, objective: Objective = Objective()) -> list[dict]:
@@ -79,4 +82,33 @@ def two_model_sensitivity(horizon: int = 4) -> list[dict]:
                     "gap": fixed - d.value,
                 }
             )
+    return rows
+
+
+def retention_table(horizon: int = 4, deltas=RETENTION_DELTAS) -> list[dict]:
+    """Retention limit P(x != x0) <= delta, single default model (roadmap R13/P0, F29)."""
+    pr = Problem((DEFAULT_HYPOTHESIS,), actions=DEFAULT_ACTIONS)
+    rows = []
+    for delta in deltas:
+        p = solve_retention(pr, delta, horizon, "pathwise")
+        e = solve_retention(pr, delta, horizon, "expected")
+        fixed, seq = best_open_loop_retention(pr, horizon, delta, "pathwise")
+        rows.append(
+            {
+                "horizon": horizon,
+                "delta": delta,
+                "unconstrained": p.unconstrained_value,
+                "unconstrained_p_changed": p.unconstrained_p_changed,
+                "unconstrained_p_violation": p.unconstrained_p_violation,
+                "pathwise": p.value,
+                "pathwise_first_action": p.first_actions[0],
+                "pathwise_best_fixed": fixed,
+                "pathwise_best_fixed_sequence": list(seq),
+                "expected_randomised": e.value,
+                "expected_multiplier": e.multiplier,
+                "expected_mixture": [[w, a] for (w, _), a in zip(e.components, e.first_actions, strict=True)],
+                "expected_deterministic": e.deterministic_value,
+                "expected_duality_gap": e.duality_gap,
+            }
+        )
     return rows
