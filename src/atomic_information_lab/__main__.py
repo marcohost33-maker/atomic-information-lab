@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import math
 import sys
 
 from .model import DEFAULT_ACTIONS, Hypothesis, Objective, Problem
 from .planner import MAX_HORIZON, solve
-from .reproduce import single_model_table, two_model_sensitivity, two_model_table
+from .reproduce import retention_table, single_model_table, two_model_sensitivity, two_model_table
+from .retention import RETENTION_MODES, solve_retention
 
 
 def _finite_float(text: str) -> float:
@@ -28,7 +30,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = ap.add_subparsers(dest="command", required=True)
     rp = sub.add_parser("reproduce", help="print the reference tables as JSON")
-    rp.add_argument("--table", choices=("single", "two-model", "sensitivity", "all"), default="all")
+    rp.add_argument("--table", choices=("single", "two-model", "sensitivity", "retention", "all"), default="all")
     rp.add_argument("--max-horizon", type=int, default=None)
     sp = sub.add_parser("solve", help="solve one single-model instance")
     sp.add_argument("--horizon", type=int, required=True)
@@ -42,6 +44,14 @@ def _build_parser() -> argparse.ArgumentParser:
     sp.add_argument(
         "--self-audit", action="store_true", help="report internal consistency checks (NOT an independent oracle)"
     )
+    sp.add_argument(
+        "--retention-limit",
+        type=_finite_float,
+        default=None,
+        metavar="DELTA",
+        help="require P(x != x0) <= DELTA (roadmap R13); see --retention-mode",
+    )
+    sp.add_argument("--retention-mode", choices=RETENTION_MODES, default="pathwise")
     return ap
 
 
@@ -60,12 +70,21 @@ def main(argv: list[str] | None = None) -> int:
                 out["two_model"] = two_model_table(two_h)
             if args.table in ("sensitivity", "all"):
                 out["two_model_sensitivity"] = two_model_sensitivity(two_h)
+            if args.table in ("retention", "all"):
+                out["retention"] = retention_table(4 if args.max_horizon is None else args.max_horizon)
         else:
             pr = Problem(
                 (Hypothesis(args.k01, args.k10, args.bias_flip),),
                 actions=DEFAULT_ACTIONS,
                 objective=Objective(args.alpha, args.energy_lambda, args.retention_weight),
             )
+            if args.retention_limit is not None:
+                if args.forced or args.self_audit:
+                    raise ValueError("--retention-limit cannot be combined with --forced or --self-audit")
+                r = solve_retention(pr, args.retention_limit, args.horizon, args.retention_mode)
+                out = {"horizon": args.horizon, "retention": dataclasses.asdict(r)}
+                print(json.dumps(out, indent=2))
+                return 0
             d = solve(pr, horizon=args.horizon, allow_stop=not args.forced)
             out = {"value": d.value, "first_action": d.action, "horizon": args.horizon, "forced": args.forced}
             if args.self_audit:

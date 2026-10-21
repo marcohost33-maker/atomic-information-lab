@@ -99,6 +99,40 @@ one (verified in rational arithmetic) — this example does not show a general
 advantage of model averaging. With retention weight 0.4 and reference
 back-action ≥ 0.55, STOP at the start is optimal.
 
+### Retention limit `P(x ≠ x0) ≤ δ` (roadmap R13/P0, formula F29)
+
+The unconstrained optimum above pays for its low risk with the stored bit:
+at `h=4` it ends with `P(x ≠ x0) = 0.135`, i.e. the measurements themselves
+corrupt the bit in 13.5 % of the runs. A retention *weight* only prices that;
+a *limit* forbids it. `solve_retention` keeps two readings apart:
+
+* **pathwise** -- every STOP has posterior `P(x ≠ x0 | data) ≤ δ`; a reading
+  is admissible only if every outcome still leaves a legal way to stop.
+* **expected** -- `P(x_T ≠ x0) ≤ δ` over all outcomes (F29). One constraint:
+  the optimum is a deterministic policy or a mix of two (Beutler & Ross 1985),
+  found through the Lagrangian -- which is the R12 retention weight shifted by
+  the multiplier `μ*`. The result carries a dual bound and its duality gap.
+  The best *deterministic* policy meeting the limit is reported as well,
+  exactly (dynamic programming over Pareto fronts of risk and cost).
+
+Single model, `h=4` (`python -m atomic_information_lab reproduce --table retention`):
+
+| δ | pathwise | best fixed sequence (pathwise) | expected, randomised | expected, deterministic | unconstrained stops above δ |
+|--:|--:|--:|--:|--:|--:|
+| 0 | 0.2500000000 | 0.2500000000 | 0.2500000000 | 0.2500000000 | 100 % |
+| 0.05 | 0.2500000000 | 0.2500000000 | 0.2019508536 | 0.2500000000 | 100 % |
+| 0.08 | 0.2500000000 | 0.2500000000 | 0.1731213658 | 0.2110043057 | 65.4 % |
+| 0.10 | 0.1715517030 | 0.1715517030 | 0.1624697730 | 0.1660146745 | 28.2 % |
+| 1 | 0.1462466036 | 0.1569144984 | 0.1462466036 | 0.1462466036 | 0 % |
+
+The hard (pathwise) limit is expensive: up to `δ = 0.08` no reading is worth
+taking. A limit on the *average* risk can be met by randomising -- e.g. at
+`δ = 0.08`, run the measuring policy with probability 0.98 and stop at once
+otherwise -- which is better than every deterministic policy (0.173 vs 0.211).
+All values agree with exhaustive search over all 7 204 deterministic policies
+(`h = 3`) and with an independent exact dynamic program on the oracle's
+rational messages (`h = 4`), `tests/test_retention.py`.
+
 See [docs/FINDINGS.md](docs/FINDINGS.md) for every audited claim and its
 verdict, including counter-examples.
 
@@ -116,8 +150,43 @@ verdict, including counter-examples.
   (monotonicity in `h`, dominance chain, normalisation over the full tree,
   strict propriety of the Brier score); negative controls each paired with a
   positive control; fail-closed tests at every public boundary and the CLI.
+* **Policy cross-evaluation** (`tests/test_policy_cross_evaluation.py`): the
+  package's *decisions* -- its own belief filter plus its own Bellman choice --
+  are replayed inside the oracle's dynamics and scored by the oracle; the score
+  must equal the oracle's optimum and, for `h ≤ 3`, the brute-force minimum.
+  A value comparison alone cannot see a wrong decision whose value is computed
+  correctly elsewhere; negative controls (never stopping, greedy, one wrong
+  decision at depth 2) are detected.
+* **Metamorphic relations** (`tests/test_metamorphic.py`, no oracle): flipping
+  every reading, relabelling the bit (`k01 ↔ k10`), permuting hypotheses or
+  actions, splitting a hypothesis into identical copies, rescaling
+  `λ ↔ E` and adding a dominated action must leave the results unchanged.
+  They see errors without any reference values, but not every error: rates
+  swapped consistently everywhere keeps every relation true.
+* **Simulation of the generative story** (`tests/_simulator.py`,
+  `tests/test_generative_simulation.py`): a Monte-Carlo simulation written
+  from the verbal model alone (Gillespie jumps, no matrices, no shared code)
+  is compared with the package per reading pattern -- probability and
+  posterior of `x0`, `x`, "changed" and the model index -- by binomial
+  z-scores (`|z| ≤ 5`; measured null 2.0–2.7, wrong stories 28–91). This is
+  the only check that sees a consistent transcription error such as swapped
+  rates.
+* **Reproducible mutation probe** (`scripts/mutation_probe.py`, a CI step):
+  thirteen model, planner and retention mutants are applied to a copy of `src/`; each
+  suite's verdict (`relation`, `guard`, `survives`) is compared with the
+  expected one, after a green baseline and a check that the copy is what was
+  imported. It records the limits too: M7 (swapped rates) survives the
+  metamorphic suite and is killed by the simulation; M8 (decision rule one
+  step short, values unchanged) is killed only by the policy cross-evaluation.
 * Mutation probes: each guard was removed in turn and the corresponding test
   was required to fail (15/15).
+
+What these checks establish, in the terms `scripts/research_gate.py` reports
+under `claims`: **value agreement** and **policy optimality** on the tested
+grids are *measured*; **independence of the specification** is *not measured*
+by the gate (the oracle is a second transcription of the same equations); the
+simulation of the generative story narrows this statistically for the tested
+sequences, it is not a proof; **physical validity** is *not claimed*.
 
 ## Usage
 
@@ -126,6 +195,7 @@ python -m pip install .
 python -m atomic_information_lab solve --horizon 4
 python -m atomic_information_lab solve --horizon 1 --forced
 python -m atomic_information_lab reproduce --table single
+python -m atomic_information_lab solve --horizon 4 --retention-limit 0.08 --retention-mode expected
 ```
 
 ```python
@@ -144,10 +214,29 @@ Run the tests: `python -m pip install pytest && python -m pytest`.
   The full reproduction takes about 10 s, the test suite under a minute
   (one Windows laptop, Python 3.12).
 * Binary observations, static model index, one bit. No continuous drift model,
-  no particle filter, no long horizons, no hard retention constraints.
+  no particle filter, no long horizons. Retention limits (`solve_retention`)
+  cover one limit on the stored bit; no limits on energy or step counts.
 * Rates and back-action large enough to overflow floating point are rejected
   (`ValueError`), never silently clipped.
+* Beliefs and hypothesis weights you pass in must sum to one within `1e-12`;
+  otherwise they are rejected, **never renormalised**. Normalising in float
+  (`v / sum(v)`) always satisfies this, also with plain summation or NumPy
+  scalars: for up to 32 states the rounding error is below `2·n·2⁻⁵³ ≈ 7e-15`
+  (measured worst case `1e-15`, `tests/test_belief_contract.py`).
+  Values rounded to fewer than about 12 significant digits are refused.
 * Pure Python, no dependencies, Python ≥ 3.12.
+
+## Roadmap status
+
+From section 13.1 of the R1–R12 report (2026-10-18):
+
+| Gate | Work package | Status |
+|---|---|---|
+| R13 / P0 | Hard retention / risk limits `P(x_t ≠ x0) ≤ δ`, violation → STOP | **done** (`retention.py`, both readings, oracle-verified) |
+| R13 / P0 | Experimental identifiability (preparation error, bias, drift, back-action separable or NO-GO) | open |
+| R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | open (continuous line, no exact oracle yet) |
+| R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |
+| R15 / P2 | Laboratory integration (STM/AFM raw data); Hexa-NTK / CodeFactory adapters | open, outside this repository |
 
 ## History
 

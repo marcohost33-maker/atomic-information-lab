@@ -28,6 +28,16 @@ from .planner import (
     optimal_policy,
     solve,
 )
+from .retention import (
+    RETENTION_MODES,
+    RetentionResult,
+    best_deterministic_retention,
+    best_open_loop_retention,
+    lagrangian_policy,
+    pathwise_policy,
+    retention_profile,
+    solve_retention,
+)
 
 __version__ = "0.1.0"
 
@@ -51,5 +61,13 @@ __all__ = [
     "open_loop_value",
     "best_open_loop",
     "nominal_policy",
+    "RETENTION_MODES",
+    "RetentionResult",
+    "solve_retention",
+    "pathwise_policy",
+    "lagrangian_policy",
+    "retention_profile",
+    "best_open_loop_retention",
+    "best_deterministic_retention",
     "__version__",
 ]

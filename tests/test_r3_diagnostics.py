@@ -2,6 +2,8 @@
 
 import json
 import math
+import os
+import pathlib
 import subprocess
 import sys
 
@@ -9,6 +11,9 @@ import pytest
 
 from atomic_information_lab import Hypothesis, Objective, Problem
 from atomic_information_lab.audit import self_audit
+
+# The CLI subprocesses must find the package from a plain checkout, as in test_cli.py.
+ENV = {**os.environ, "PYTHONPATH": str(pathlib.Path(__file__).resolve().parents[1] / "src")}
 
 
 @pytest.mark.parametrize("h", [0, 1, 2, 3])
@@ -32,6 +37,7 @@ def test_cli_self_audit_json():
         [sys.executable, "-m", "atomic_information_lab", "solve", "--horizon", "2", "--self-audit"],
         capture_output=True,
         text=True,
+        env=ENV,
     )
     assert p.returncode == 0, p.stderr
     data = json.loads(p.stdout)
@@ -40,7 +46,10 @@ def test_cli_self_audit_json():
 
 def test_cli_without_self_audit_preserves_old_schema():
     p = subprocess.run(
-        [sys.executable, "-m", "atomic_information_lab", "solve", "--horizon", "1"], capture_output=True, text=True
+        [sys.executable, "-m", "atomic_information_lab", "solve", "--horizon", "1"],
+        capture_output=True,
+        text=True,
+        env=ENV,
     )
     assert p.returncode == 0, p.stderr
     assert "self_audit" not in json.loads(p.stdout)
@@ -63,6 +72,7 @@ def test_self_audit_forced_mode_fails_explicitly():
         [sys.executable, "-m", "atomic_information_lab", "solve", "--horizon", "2", "--self-audit", "--forced"],
         capture_output=True,
         text=True,
+        env=ENV,
     )
     assert p.returncode == 2
     assert "optional-stop" in p.stderr

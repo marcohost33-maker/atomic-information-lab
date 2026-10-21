@@ -86,3 +86,33 @@ def test_module_entry_point_subprocess():
     )
     assert bad.returncode == 2
     assert bad.stdout == ""
+
+
+def test_retention_limit_cli(capsys):
+    assert main(["solve", "--horizon", "3", "--retention-limit", "0.05", "--retention-mode", "pathwise"]) == 0
+    r = json.loads(capsys.readouterr().out)["retention"]
+    assert r["mode"] == "pathwise" and r["value"] == pytest.approx(0.25, abs=1e-12)
+    assert r["unconstrained_p_violation"] == pytest.approx(1.0)
+    assert main(["solve", "--horizon", "3", "--retention-limit", "0.05", "--retention-mode", "expected"]) == 0
+    r = json.loads(capsys.readouterr().out)["retention"]
+    assert r["p_changed"] == pytest.approx(0.05, abs=1e-12) and r["duality_gap"] == pytest.approx(0.0, abs=1e-12)
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["solve", "--horizon", "3", "--retention-limit", "1.5"],
+        ["solve", "--horizon", "3", "--retention-limit", "-0.1"],
+        ["solve", "--horizon", "3", "--retention-limit", "0.1", "--forced"],
+        ["solve", "--horizon", "3", "--retention-limit", "0.1", "--self-audit"],
+    ],
+)
+def test_retention_limit_cli_rejects(argv, capsys):
+    assert main(argv) == 2
+    assert "error:" in capsys.readouterr().err
+
+
+def test_reproduce_retention_table(capsys):
+    assert main(["reproduce", "--table", "retention", "--max-horizon", "2"]) == 0
+    rows = json.loads(capsys.readouterr().out)["retention"]
+    assert [r["horizon"] for r in rows] == [2] * 7
