@@ -31,7 +31,37 @@ locally; hosted CI on this change is still open.
   confirms the evaluation and the true optimum independently, not the
   specification itself.
 
+- Policy cross-evaluation (`tests/test_policy_cross_evaluation.py`): the
+  package's decision rule is replayed inside the independent oracle and
+  scored there, against the oracle optimum (exact, `h ≤ 3`; float, `h = 4`)
+  and the brute-force minimum over all policies (`h ≤ 3`), with and without
+  STOP, on all 13 oracle cases. Before, the tests compared values only and
+  scored the package policy with the package itself. Negative controls:
+  never-stop, greedy, and a single wrong decision at depth 2.
+- `scripts/research_gate.py` measures policy optimality as well
+  (`policy_comparisons`, `max_abs_policy_gap`) and reports the claim scope
+  machine-readably under `claims`: value agreement and policy optimality
+  `measured`, specification independence `not_measured`, physical validity
+  `not_claimed`. Schema bumped to `ail-independent-oracle-sweep-r4-v2`;
+  `certify(policy_fn=...)` takes a mutant for negative controls. A wrong
+  policy with correct values (`solve_fn` untouched) makes the gate fail.
+- Metamorphic tests (`tests/test_metamorphic.py`), oracle-free, each with a
+  control: reading flip, bit relabelling, hypothesis and action permutation,
+  split into identical copies, `λ·E` rescaling, monotonicity in `λ`,
+  dominated and cheaper action copies. Six injected model mutants (reference
+  reads `x`, cost not `λ·E`, one kernel for all hypotheses, model-posterior
+  slice, `k10` ignored, frozen bias) were all killed.
+- Belief input contract tests (`tests/test_belief_contract.py`): 20 000
+  seeded and several adversarial float-normalised beliefs per size (8, 16,
+  32 states) are accepted, with a measured worst deviation `≤ 2·n·2⁻⁵³`
+  (≥ 100× below 1e-12); boundary `5e-13`/`9e-13` accepted, `2e-12` rejected;
+  no renormalisation; `±inf`, NaN and `bool` rejected; `-0.0` equals `0.0`;
+  posteriors over full planning trees keep the same margin.
+
 ### Changed
+- `validate_belief` documents its contract (reject, never renormalise) and
+  the rounding margin; hypothesis weights now use the same `_SUM_TOL`
+  constant as beliefs (same value 1e-12, same NaN-safe comparison).
 - **Breaking for callers passing their own beliefs:** probability-mass
   tolerance tightened from 1e-9 to 1e-12 (`validate_belief`, outcome masses in
   `branches`). Beliefs that sum to one only within 1e-9 are now rejected.
@@ -62,6 +92,11 @@ locally; hosted CI on this change is still open.
   (the oracle agrees for any grid). The grids are now pinned by SHA-256, and
   the research-gate test pins `configs_sha256` for seed 20261020 and checks
   that a different seed changes it.
+
+- Test-only: the three CLI subprocess tests in `tests/test_r3_diagnostics.py`
+  failed from a plain checkout (`No module named atomic_information_lab`)
+  because, unlike `tests/test_cli.py`, they did not set `PYTHONPATH`; they
+  passed only with the package installed.
 
 ### Removed
 - `tests/test_ail_r2_external_replay.py` from the R9 delivery: it was a

@@ -116,8 +116,27 @@ verdict, including counter-examples.
   (monotonicity in `h`, dominance chain, normalisation over the full tree,
   strict propriety of the Brier score); negative controls each paired with a
   positive control; fail-closed tests at every public boundary and the CLI.
+* **Policy cross-evaluation** (`tests/test_policy_cross_evaluation.py`): the
+  package's *decisions* -- its own belief filter plus its own Bellman choice --
+  are replayed inside the oracle's dynamics and scored by the oracle; the score
+  must equal the oracle's optimum and, for `h ≤ 3`, the brute-force minimum.
+  A value comparison alone cannot see a wrong decision whose value is computed
+  correctly elsewhere; negative controls (never stopping, greedy, one wrong
+  decision at depth 2) are detected.
+* **Metamorphic relations** (`tests/test_metamorphic.py`, no oracle): flipping
+  every reading, relabelling the bit (`k01 ↔ k10`), permuting hypotheses or
+  actions, splitting a hypothesis into identical copies, rescaling
+  `λ ↔ E` and adding a dominated action must leave the results unchanged.
+  These catch specification errors the oracle would share (6/6 injected
+  model mutants killed).
 * Mutation probes: each guard was removed in turn and the corresponding test
   was required to fail (15/15).
+
+What these checks establish, in the terms `scripts/research_gate.py` reports
+under `claims`: **value agreement** and **policy optimality** on the tested
+grids are *measured*; **independence of the specification** is *not measured*
+(the oracle is a second transcription of the same equations; the metamorphic
+relations only narrow this); **physical validity** is *not claimed*.
 
 ## Usage
 
@@ -147,6 +166,11 @@ Run the tests: `python -m pip install pytest && python -m pytest`.
   no particle filter, no long horizons, no hard retention constraints.
 * Rates and back-action large enough to overflow floating point are rejected
   (`ValueError`), never silently clipped.
+* Beliefs and hypothesis weights you pass in must sum to one within `1e-12`;
+  otherwise they are rejected, **never renormalised**. Normalising in float
+  (`v / sum(v)`) always satisfies this: for up to 32 states the rounding error
+  is at most about `7e-15` (`tests/test_belief_contract.py` measures it).
+  Values rounded to fewer than about 12 significant digits are refused.
 * Pure Python, no dependencies, Python ≥ 3.12.
 
 ## History
