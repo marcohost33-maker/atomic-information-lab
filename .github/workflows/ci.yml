@@ -36,6 +36,9 @@ jobs:
         run: python -m ruff format --check .
       - name: Tests
         run: python -m pytest -q
+      - name: Mutation probe (one matrix entry)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: python scripts/mutation_probe.py
       - name: CLI smoke test (installed package)
         run: |
           cd "$RUNNER_TEMP"
