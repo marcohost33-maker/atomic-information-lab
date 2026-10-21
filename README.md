@@ -127,16 +127,32 @@ verdict, including counter-examples.
   every reading, relabelling the bit (`k01 ↔ k10`), permuting hypotheses or
   actions, splitting a hypothesis into identical copies, rescaling
   `λ ↔ E` and adding a dominated action must leave the results unchanged.
-  These catch specification errors the oracle would share (6/6 injected
-  model mutants killed).
+  They see errors without any reference values, but not every error: rates
+  swapped consistently everywhere keeps every relation true.
+* **Simulation of the generative story** (`tests/_simulator.py`,
+  `tests/test_generative_simulation.py`): a Monte-Carlo simulation written
+  from the verbal model alone (Gillespie jumps, no matrices, no shared code)
+  is compared with the package per reading pattern -- probability and
+  posterior of `x0`, `x`, "changed" and the model index -- by binomial
+  z-scores (`|z| ≤ 5`; measured null 2.0–2.7, wrong stories 28–91). This is
+  the only check that sees a consistent transcription error such as swapped
+  rates.
+* **Reproducible mutation probe** (`scripts/mutation_probe.py`, a CI step):
+  eight model and planner mutants are applied to a copy of `src/`; each
+  suite's verdict (`relation`, `guard`, `survives`) is compared with the
+  expected one, after a green baseline and a check that the copy is what was
+  imported. It records the limits too: M7 (swapped rates) survives the
+  metamorphic suite and is killed by the simulation; M8 (decision rule one
+  step short, values unchanged) is killed only by the policy cross-evaluation.
 * Mutation probes: each guard was removed in turn and the corresponding test
   was required to fail (15/15).
 
 What these checks establish, in the terms `scripts/research_gate.py` reports
 under `claims`: **value agreement** and **policy optimality** on the tested
 grids are *measured*; **independence of the specification** is *not measured*
-(the oracle is a second transcription of the same equations; the metamorphic
-relations only narrow this); **physical validity** is *not claimed*.
+by the gate (the oracle is a second transcription of the same equations); the
+simulation of the generative story narrows this statistically for the tested
+sequences, it is not a proof; **physical validity** is *not claimed*.
 
 ## Usage
 
@@ -168,8 +184,9 @@ Run the tests: `python -m pip install pytest && python -m pytest`.
   (`ValueError`), never silently clipped.
 * Beliefs and hypothesis weights you pass in must sum to one within `1e-12`;
   otherwise they are rejected, **never renormalised**. Normalising in float
-  (`v / sum(v)`) always satisfies this: for up to 32 states the rounding error
-  is at most about `7e-15` (`tests/test_belief_contract.py` measures it).
+  (`v / sum(v)`) always satisfies this, also with plain summation or NumPy
+  scalars: for up to 32 states the rounding error is below `2·n·2⁻⁵³ ≈ 7e-15`
+  (measured worst case `1e-15`, `tests/test_belief_contract.py`).
   Values rounded to fewer than about 12 significant digits are refused.
 * Pure Python, no dependencies, Python ≥ 3.12.
 

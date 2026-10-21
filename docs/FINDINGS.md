@@ -56,7 +56,17 @@ refuse. A pure value test could not see swapped `k01`/`k10` (values are
 symmetric under relabelling 0↔1); a test now compares posterior marginals
 against the oracle (mutation W15).
 
-## 4. Not checked
+## 4. R11 follow-up (2026-10-21, same-family; cross-family review pending)
+
+| ID | Finding | Verdict | Evidence / treatment |
+|---|---|---|---|
+| N-7 | Value tests do not show optimal *decisions*: the package policy was scored by the package itself. A decision rule one step short (`solve()` values unchanged) passed every value comparison against the oracle. | new | package decisions replayed and scored inside the oracle and against brute force (`test_policy_cross_evaluation.py`, gate `policy_optimality_on_grid`); mutant M8 killed |
+| N-8 | A consistent transcription error (rates swapped everywhere) is invisible to all metamorphic relations and shared by any oracle written from the same equations. | new | Gillespie simulation of the verbal model (`test_generative_simulation.py`); M7 killed (z 28–82) |
+| N-9 | 1e-12 belief tolerance: satisfiable by any float-normalised belief (bound `2·n·2⁻⁵³`), also without compensated `sum()` (float subclasses such as `numpy.float64` are summed plainly by CPython ≥ 3.12). | CONFIRMED | `test_belief_contract.py`, worst `1e-15` at n = 32 |
+| N-10 | Three CLI subprocess tests depended on an installed package. | fixed | `PYTHONPATH` as in `test_cli.py` |
+| N-11 | A claimed "6/6 mutants killed by metamorphic relations" included one mutant caught only by the mass guard. | REFUTED (own claim) | probe classifies `relation` vs `guard`; mutant replaced |
+
+## 5. Not checked
 
 R6 figures, rounds R1–R7, the literature list of the earlier report, any
 statement about other projects, Python < 3.12.

@@ -38,6 +38,9 @@ locally; hosted CI on this change is still open.
   STOP, on all 13 oracle cases. Before, the tests compared values only and
   scored the package policy with the package itself. Negative controls:
   never-stop, greedy, and a single wrong decision at depth 2.
+- `scripts/research_gate.py`: an action name the oracle does not know now
+  raises `ArithmeticError` (verdict fail, exit 2) instead of escaping as
+  `StopIteration`.
 - `scripts/research_gate.py` measures policy optimality as well
   (`policy_comparisons`, `max_abs_policy_gap`) and reports the claim scope
   machine-readably under `claims`: value agreement and policy optimality
@@ -48,15 +51,38 @@ locally; hosted CI on this change is still open.
 - Metamorphic tests (`tests/test_metamorphic.py`), oracle-free, each with a
   control: reading flip, bit relabelling, hypothesis and action permutation,
   split into identical copies, `λ·E` rescaling, monotonicity in `λ`,
-  dominated and cheaper action copies. Six injected model mutants (reference
-  reads `x`, cost not `λ·E`, one kernel for all hypotheses, model-posterior
-  slice, `k10` ignored, frozen bias) were all killed.
+  dominated and cheaper action copies.
+- Simulation of the generative story (`tests/_simulator.py`,
+  `tests/test_generative_simulation.py`): Gillespie Monte Carlo from the
+  verbal model, no shared code, compared per reading pattern by binomial
+  z-scores; four cases, power controls (swapped rates, reading before the
+  evolution, quadrupled bias flip) far above the threshold. It is the first
+  check that sees rates swapped consistently everywhere.
+- `scripts/mutation_probe.py` (CI step on ubuntu/3.13) and
+  `tests/test_mutation_probe.py` (anchor drift guard): eight mutants on a copy
+  of `src/`, verdicts classified as `relation`/`guard`/`survives` and
+  compared with the expected ones; green baseline and import-path check
+  first. Replaces ad-hoc probes in the working tree.
+- `oracle_independence(module, allowed=...)`: the allowlist is a parameter
+  (default unchanged), so the simulator is checked with the same rule plus
+  `random`.
 - Belief input contract tests (`tests/test_belief_contract.py`): 20 000
   seeded and several adversarial float-normalised beliefs per size (8, 16,
-  32 states) are accepted, with a measured worst deviation `≤ 2·n·2⁻⁵³`
-  (≥ 100× below 1e-12); boundary `5e-13`/`9e-13` accepted, `2e-12` rejected;
+  32 states) are accepted, both with built-in floats (compensated `sum()`)
+  and with plain-loop normalisation of float-subclass entries (the path
+  NumPy scalars take); worst deviation `1e-15` at 32 states, bound
+  `2·n·2⁻⁵³` (≥ 140× below 1e-12); boundary `5e-13`/`9e-13` accepted, `2e-12` rejected;
   no renormalisation; `±inf`, NaN and `bool` rejected; `-0.0` equals `0.0`;
   posteriors over full planning trees keep the same margin.
+
+### Corrected (within this unreleased change)
+- An earlier draft of this entry said six mutants were killed by the
+  metamorphic relations. One of them (bias frozen when `x = 1`) produced a
+  non-stochastic kernel and was caught by the fail-closed mass guard, not by
+  a relation; it is replaced by a stochastic mutant, and the probe now
+  reports which mechanism caught each mutant. The quoted 1e-12 margin
+  ("about 3000×") was measured with compensated summation only; the
+  realistic plain-summation margin is about 1000×.
 
 ### Changed
 - `validate_belief` documents its contract (reject, never renormalise) and
