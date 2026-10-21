@@ -188,10 +188,12 @@ class Problem:
         Contract: ``n_states`` finite, non-negative reals (``-0.0`` counts as
         zero, ``bool`` is rejected) whose float sum is within ``_SUM_TOL``
         (1e-12) of one. A belief normalised in float (``v / sum(v)``) deviates
-        by at most about ``2 * n_states * 2**-53`` (7.1e-15 for 32 states), so
-        the tolerance only rejects inputs that were not normalised at all or
-        were rounded to fewer than about 12 digits. Such inputs are refused
-        rather than rescaled: silent rescaling would hide a caller's mistake.
+        by less than ``2 * n_states * 2**-53`` (7.1e-15 for 32 states) even
+        with plain, uncompensated summation (e.g. numpy.float64 entries, for
+        which ``sum()`` does not compensate), so the tolerance only rejects
+        inputs that were not normalised at all or were rounded to fewer than
+        about 12 digits. Such inputs are refused rather than rescaled: silent
+        rescaling would hide a caller's mistake.
         """
         belief = tuple(belief)
         if len(belief) != self.n_states or not _finite(*belief) or any(p < 0 for p in belief):

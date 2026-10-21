@@ -3,11 +3,18 @@
 Contract (``Problem.validate_belief``, ``Problem(weights=...)``): finite,
 non-negative reals, float sum within 1e-12 of one; anything else is REJECTED,
 never renormalised. The question from the cross-family review was whether
-1e-12 is still satisfiable by real inputs. Rounding analysis: ``v / sum(v)``
-for n <= 32 entries lands within about ``2 * n * 2**-53`` (7.1e-15) of one;
-the tests below try to break that bound with seeded random and adversarial
-vectors and measure the margin to 1e-12, plus the posteriors the package
-produces itself over a full planning tree.
+1e-12 is still satisfiable by real inputs. Rounding analysis (first order,
+plain left-to-right summation): computing ``s = sum(v)`` costs ``(n-1)u``,
+each ``v_i / s`` costs ``u``, summing the result again costs ``(n-1)u``, so a
+float-normalised belief lands within ``(2n-1)u < 2 * n * 2**-53`` of one
+(7.1e-15 for n = 32). The tests below try to break that bound with seeded
+random and adversarial vectors and measure the margin to 1e-12, plus the
+posteriors the package produces itself over a full planning tree.
+
+CPython >= 3.12 ``sum()`` uses compensated (Neumaier) summation for exact
+``float`` objects only; float subclasses such as ``numpy.float64`` take the
+plain path. Margins measured with built-in floats alone would therefore be
+optimistic; both paths are attacked here.
 """
 
 import math
@@ -26,9 +33,32 @@ FOUR = Problem(
 PROBLEMS = {8: Problem(), 16: Problem(TWO_HYPOTHESES, (0.5, 0.5)), 32: FOUR}
 
 
+class Scalar(float):
+    """Stands in for numpy.float64: a float subclass, summed without compensation."""
+
+
+def naive_sum(values):
+    total = 0.0
+    for x in values:
+        total += x
+    return total
+
+
 def normalised(v):
     s = sum(v)
     return tuple(x / s for x in v)
+
+
+def normalised_naively(v):
+    """How a caller normalises with a plain loop or with NumPy scalars."""
+    s = naive_sum(v)
+    return tuple(Scalar(x / s) for x in v)
+
+
+def test_builtin_sum_is_compensated_only_for_exact_floats():
+    """Documents the CPython behaviour the margins depend on (requires-python >= 3.12)."""
+    assert sum([1.0, 1e100, 1.0, -1e100]) == 2.0
+    assert sum([Scalar(1.0), Scalar(1e100), Scalar(1.0), Scalar(-1e100)]) == 0.0
 
 
 def test_tolerance_is_the_documented_one():
@@ -49,6 +79,20 @@ def test_float_normalised_beliefs_are_always_accepted(n):
 
 
 @pytest.mark.parametrize("n", sorted(PROBLEMS))
+def test_naively_normalised_scalar_beliefs_are_always_accepted(n):
+    """Same attack without compensated summation anywhere: plain-loop normalisation,
+    float-subclass entries (so validate_belief's own sum() is plain, too)."""
+    pr, rng, worst = PROBLEMS[n], random.Random(20261022 + n), 0.0
+    for _ in range(20_000):
+        v = [rng.random() ** rng.choice((1, 4, 12, 40)) for _ in range(n)]
+        b = normalised_naively(v)
+        worst = max(worst, abs(naive_sum(b) - 1.0))
+        pr.validate_belief(b)
+    assert worst <= 2 * n * U
+    assert worst > 2 * U or n == 8  # control: this path really is less accurate than the compensated one
+
+
+@pytest.mark.parametrize("n", sorted(PROBLEMS))
 def test_adversarial_normalised_beliefs_are_accepted(n):
     """One dominant entry plus tiny ones, thirds, and ascending/descending order."""
     pr = PROBLEMS[n]
@@ -59,9 +103,12 @@ def test_adversarial_normalised_beliefs_are_accepted(n):
         normalised([1.0 / (i + 1) for i in range(n)]),
         normalised([float(i + 1) for i in range(n)][::-1]),
         tuple([1.0 / 3.0] * 3 + [0.0] * (n - 3)),  # thirds without renormalising: sum is 1 - 1.1e-16
+        normalised_naively([0.1] * n),
+        normalised_naively([1.0] + [1e-9] * (n - 1)),
+        normalised_naively([float(i + 1) for i in range(n)]),
     ]
     for b in candidates:
-        assert abs(sum(b) - 1.0) <= 2 * n * U
+        assert abs(naive_sum(b) - 1.0) <= 2 * n * U
         pr.validate_belief(b)
 
 
