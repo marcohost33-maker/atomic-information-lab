@@ -155,7 +155,7 @@ class Problem:
         weights = tuple(weights)
         if len(weights) != len(hypotheses) or not _finite(*weights) or any(w < 0 for w in weights):
             raise ValueError("weights must be finite, non-negative, one per hypothesis")
-        if abs(sum(weights) - 1.0) > 1e-12:
+        if not abs(sum(weights) - 1.0) <= _SUM_TOL:
             raise ValueError("weights must sum to one")
         self.hypotheses = hypotheses
         self.weights = weights
@@ -183,6 +183,16 @@ class Problem:
         return tuple(w * (0.25 if x == x0 else 0.0) for w in self.weights for (x0, x, b) in _LOCAL)
 
     def validate_belief(self, belief: Sequence[float]) -> tuple[float, ...]:
+        """Return ``belief`` as a tuple, or raise ``ValueError``; never renormalise.
+
+        Contract: ``n_states`` finite, non-negative reals (``-0.0`` counts as
+        zero, ``bool`` is rejected) whose float sum is within ``_SUM_TOL``
+        (1e-12) of one. A belief normalised in float (``v / sum(v)``) deviates
+        by at most about ``2 * n_states * 2**-53`` (7.1e-15 for 32 states), so
+        the tolerance only rejects inputs that were not normalised at all or
+        were rounded to fewer than about 12 digits. Such inputs are refused
+        rather than rescaled: silent rescaling would hide a caller's mistake.
+        """
         belief = tuple(belief)
         if len(belief) != self.n_states or not _finite(*belief) or any(p < 0 for p in belief):
             raise ValueError(f"belief must be {self.n_states} finite non-negative numbers")
