@@ -56,11 +56,11 @@ ORACLE_ALLOWED_IMPORTS = frozenset({"__future__", "math", "fractions", "itertool
 _DYNAMIC_IMPORT_NAMES = frozenset({"__import__", "importlib", "exec", "eval", "compile", "__builtins__"})
 
 
-def oracle_independence(module) -> tuple[bool, str]:
+def oracle_independence(module, allowed: frozenset[str] = ORACLE_ALLOWED_IMPORTS) -> tuple[bool, str]:
     """MEASURE whether ``module`` (the oracle actually used) is independent of the package.
 
     Two checks, both must pass:
-    1. its source file imports only ``ORACLE_ALLOWED_IMPORTS`` (anywhere, also
+    1. its source file imports only ``allowed`` (default ``ORACLE_ALLOWED_IMPORTS``; anywhere, also
        inside functions), uses no dynamic-import names, and names the package
        in no string other than a docstring;
     2. nothing bound in the loaded module object comes from the package
@@ -82,8 +82,8 @@ def oracle_independence(module) -> tuple[bool, str]:
             roots = {"." * node.level + (node.module or "").split(".")[0]}
         else:
             roots = set()
-        if roots - ORACLE_ALLOWED_IMPORTS:
-            return False, f"import outside allowlist at line {node.lineno}: {sorted(roots - ORACLE_ALLOWED_IMPORTS)}"
+        if roots - allowed:
+            return False, f"import outside allowlist at line {node.lineno}: {sorted(roots - allowed)}"
         if isinstance(node, ast.Name | ast.Attribute):
             name = node.id if isinstance(node, ast.Name) else node.attr
             if name in _DYNAMIC_IMPORT_NAMES:
@@ -144,7 +144,12 @@ def oracle_side_policy(pkg: Problem, oracle_model, choose):
                 raise ArithmeticError(f"package calls an oracle-reachable observation impossible: {history}")
             belief = match[0]
         name = choose(belief, history, h)
-        return None if name == STOP else next(a for a in oracle_model.actions if a[0] == name)
+        if name == STOP:
+            return None
+        for action in oracle_model.actions:
+            if action[0] == name:
+                return action
+        raise ArithmeticError(f"package chose an action the oracle does not know: {name!r}")
 
     return policy
 

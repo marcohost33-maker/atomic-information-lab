@@ -159,3 +159,17 @@ def test_package_impossible_but_oracle_reachable_observation_fails_closed():
     policy = gate.oracle_side_policy(pkg, model, lambda b, hist, h: pkg.actions[0].name)
     with pytest.raises(ArithmeticError, match="impossible"):
         model.policy_value(model.root(), 2, policy)
+
+
+def test_unknown_action_name_from_the_package_fails_closed():
+    spec = gate.generated_case(gate.random.Random(20261020))
+    pkg = gate.Problem(
+        tuple(gate.Hypothesis(k01, k10, f) for _, k01, k10, f in spec["hyps"]),
+        tuple(w for w, *_ in spec["hyps"]),
+        tuple(gate.Action(*a) for a in spec["actions"]),
+        gate.Objective(spec["alpha"], spec["lam"], spec["beta"]),
+    )
+    model = gate.oracle.Model(spec["hyps"], spec["actions"], spec["lam"], spec["alpha"], spec["beta"])
+    policy = gate.oracle_side_policy(pkg, model, lambda b, hist, h: "teleport")
+    with pytest.raises(ArithmeticError, match="does not know"):
+        model.policy_value(model.root(), 1, policy)
