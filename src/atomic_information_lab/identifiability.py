@@ -499,7 +499,9 @@ class IdentifiabilityReport:
     fisher: tuple[tuple[float, ...], ...]  # per session
     rank: int
     locally_identifiable: bool  # Fisher information non-singular (Rothenberg 1971)
-    verdict: str  # "GO", "NO-GO" (rank deficient) or "AMBIGUOUS" (full rank but a global witness)
+    # "NO-GO" (rank deficient), "AMBIGUOUS" (full rank but a known global witness) or "GO" (full rank and
+    # none of the known witnesses applies; the witness list is not exhaustive, so GO is a local statement)
+    verdict: str
     min_normalised_eigenvalue: float
     zero_information: tuple[str, ...]  # parameters the design carries no information about
     null_directions: tuple[tuple[float, ...], ...]  # original coordinates, largest entry +1

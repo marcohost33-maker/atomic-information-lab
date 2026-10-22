@@ -149,7 +149,8 @@ experimenter also records which bit was written.
   sessions needed for a 10 % relative standard error.
 * **Structural witnesses**: a second parameter point with the same outcome
   distribution, checked every time (difference ≤ 1e-13), each re-derived in
-  exact rational arithmetic in the tests.
+  exact rational arithmetic in the tests. The list of known witnesses is not
+  exhaustive: GO means "locally identifiable, no known global ambiguity".
 
 Default parameters, `prep_error = 0.02`, design `fast, reference, precise,
 reference, fast, precise` unless stated
