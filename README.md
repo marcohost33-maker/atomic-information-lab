@@ -145,8 +145,10 @@ experimenter also records which bit was written.
 
 * **Fisher information** per session from exact forward-mode derivatives;
   by Rothenberg (1971) a non-singular matrix means locally identifiable.
-  The null space is reported, and Cramér–Rao bounds give the number of
-  sessions needed for a 10 % relative standard error.
+  The null space is reported, and the Cramér–Rao bound gives a LOWER bound
+  on the sessions needed for a 10 % relative standard error (necessary, not
+  sufficient: no estimator is shown to reach it; `sessions_scope` =
+  `CRLB_NECESSARY_LOWER_BOUND_ONLY`).
 * **Structural witnesses**: a second parameter point with the same outcome
   distribution, checked every time (difference ≤ 1e-13), each re-derived in
   exact rational arithmetic in the tests. The list of known witnesses is not
@@ -156,7 +158,7 @@ Default parameters, `prep_error = 0.02`, design `fast, reference, precise,
 reference, fast, precise` unless stated
 (`python -m atomic_information_lab reproduce --table identifiability`):
 
-| scenario | verdict | rank | witness | sessions for 10 % (worst parameter) |
+| scenario | verdict | rank | witness | sessions for 10 %, at least (worst parameter, CRLB) |
 |---|---|--:|---|--:|
 | all free, unknown writes | NO-GO | 9/11 | `drift_backaction_scale`, `prep_error_hidden` | — |
 | all free, known writes | NO-GO | 10/11 | `drift_backaction_scale` | — |
@@ -181,10 +183,10 @@ What this means:
   apart (exact witness).
 * **Without a reference read** `k01` and `k10` can be swapped (with `x ↔ 1−x`,
   `b ↔ 1−b`) without changing any reading — locally identifiable, globally
-  ambiguous, and the Cramér–Rao bound needs about 10⁹ sessions anyway.
+  ambiguous, and the Cramér–Rao bound alone already demands about 10⁹ sessions.
 * **GO needs at least four readings per session** (exhaustive search over all
   162 designs of length 4; none of length 3 suffices), and even the best one
-  needs about 6.7 million sessions to pin the 2 % preparation error to 10 %.
+  needs at least about 6.7 million sessions to pin the 2 % preparation error to 10 %.
   The physically motivated next step is therefore not a larger planner but a
   cheaper handle on `prep_error` and on the reference back-action.
 

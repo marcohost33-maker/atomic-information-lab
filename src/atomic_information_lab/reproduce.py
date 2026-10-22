@@ -166,6 +166,7 @@ def identifiability_table() -> list[dict]:
                 "zero_information": list(r.zero_information),
                 "worst_parameter_sessions_for_10pct": worst,
                 "sessions_for_10pct": dict(zip(r.free, r.sessions_for_target, strict=True)),
+                "sessions_scope": r.sessions_scope,
             }
         )
     return rows

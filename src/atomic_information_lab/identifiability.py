@@ -69,6 +69,7 @@ __all__ = [
     "Discrimination",
     "DesignScore",
     "SCOPE",
+    "SESSIONS_SCOPE",
     "MAX_DESIGN_LENGTH",
     "MAX_SEARCH_DESIGNS",
     "RANK_TOL",
@@ -91,6 +92,10 @@ SCOPE = {
     "AMBIGUOUS": "LOCAL_ONLY_GLOBAL_REFUTED_BY_WITNESS",
     "GO": "LOCAL_ONLY_GLOBAL_UNPROVEN",
 }
+# Scope of every session count derived from the Fisher information (AIL-R27-01). The Cramér–Rao bound
+# limits the variance of UNBIASED estimators under regularity conditions; no estimator is shown to reach
+# it. A count is therefore necessary, never sufficient, for the target precision.
+SESSIONS_SCOPE = "CRLB_NECESSARY_LOWER_BOUND_ONLY"
 MAX_SEARCH_DESIGNS = 2048
 RANK_TOL = 1e-9  # eigenvalue of the scale-free Fisher matrix (diagonal 1) counted as zero
 # Information about a relative change of a parameter, F_ii * value**2 (value 0: F_ii), below which the
@@ -518,6 +523,7 @@ class IdentifiabilityReport:
     witnesses: tuple[Witness, ...]
     relative_crlb: tuple[float | None, ...]  # per session: sqrt((F^-1)_ii) / |value|
     sessions_for_target: tuple[int | None, ...]  # sessions for relative SE <= target_rse
+    sessions_scope: str  # SESSIONS_SCOPE: lower bound only
     target_rse: float
     energy_per_session: float
     notes: tuple[str, ...] = field(default=())
@@ -599,6 +605,7 @@ def identifiability(
         witnesses,
         tuple(rel),
         tuple(sess),
+        SESSIONS_SCOPE,
         float(target_rse),
         energy,
         tuple(notes),
@@ -678,6 +685,7 @@ class DesignScore:
     scope: str  # SCOPE[verdict]
     log_det: float | None  # log det of the per-session Fisher information (D-optimality); None if singular
     worst_sessions: int | None  # max over parameters of the sessions needed for target_rse
+    sessions_scope: str  # SESSIONS_SCOPE: worst_sessions is a lower bound, not a guarantee
     energy_per_session: float
 
 
@@ -711,7 +719,12 @@ def design_search(
             lam, _ = _eigh(rep.fisher)
             ld = sum(log(x) for x in lam) if min(lam) > 0 else None
         worst = None if None in rep.sessions_for_target else max(rep.sessions_for_target)
-        scores.append((order, DesignScore(rep.design, rep.verdict, rep.scope, ld, worst, rep.energy_per_session)))
+        scores.append(
+            (
+                order,
+                DesignScore(rep.design, rep.verdict, rep.scope, ld, worst, rep.sessions_scope, rep.energy_per_session),
+            )
+        )
     rank = {"GO": 0, "AMBIGUOUS": 1, "NO-GO": 2}
 
     def key(t):
