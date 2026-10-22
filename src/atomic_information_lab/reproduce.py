@@ -161,6 +161,7 @@ def identifiability_table() -> list[dict]:
                 "free": len(r.free),
                 "rank": r.rank,
                 "verdict": r.verdict,
+                "scope": r.scope,
                 "witnesses": [w.name for w in r.witnesses],
                 "zero_information": list(r.zero_information),
                 "worst_parameter_sessions_for_10pct": worst,

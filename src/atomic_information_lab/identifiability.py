@@ -68,6 +68,7 @@ __all__ = [
     "IdentifiabilityReport",
     "Discrimination",
     "DesignScore",
+    "SCOPE",
     "MAX_DESIGN_LENGTH",
     "MAX_SEARCH_DESIGNS",
     "RANK_TOL",
@@ -82,6 +83,14 @@ __all__ = [
 ]
 
 MAX_DESIGN_LENGTH = 10
+# Machine-readable scope of each verdict (AIL-R25-01). A full Fisher rank supports LOCAL identifiability
+# only; the witness list is not exhaustive, so no verdict ever claims GLOBAL identifiability. Consumers
+# must read the scope, never "GO" alone.
+SCOPE = {
+    "NO-GO": "NOT_LOCALLY_IDENTIFIABLE",
+    "AMBIGUOUS": "LOCAL_ONLY_GLOBAL_REFUTED_BY_WITNESS",
+    "GO": "LOCAL_ONLY_GLOBAL_UNPROVEN",
+}
 MAX_SEARCH_DESIGNS = 2048
 RANK_TOL = 1e-9  # eigenvalue of the scale-free Fisher matrix (diagonal 1) counted as zero
 # Information about a relative change of a parameter, F_ii * value**2 (value 0: F_ii), below which the
@@ -502,6 +511,7 @@ class IdentifiabilityReport:
     # "NO-GO" (rank deficient), "AMBIGUOUS" (full rank but a known global witness) or "GO" (full rank and
     # none of the known witnesses applies; the witness list is not exhaustive, so GO is a local statement)
     verdict: str
+    scope: str  # SCOPE[verdict]
     min_normalised_eigenvalue: float
     zero_information: tuple[str, ...]  # parameters the design carries no information about
     null_directions: tuple[tuple[float, ...], ...]  # original coordinates, largest entry +1
@@ -582,6 +592,7 @@ def identifiability(
         rank,
         local,
         verdict,
+        SCOPE[verdict],
         min_eig,
         zero,
         tuple(null_dirs),
@@ -664,6 +675,7 @@ def discrimination(cal_a: Calibration, cal_b: Calibration, design: Design, alpha
 class DesignScore:
     design: Design
     verdict: str
+    scope: str  # SCOPE[verdict]
     log_det: float | None  # log det of the per-session Fisher information (D-optimality); None if singular
     worst_sessions: int | None  # max over parameters of the sessions needed for target_rse
     energy_per_session: float
@@ -699,7 +711,7 @@ def design_search(
             lam, _ = _eigh(rep.fisher)
             ld = sum(log(x) for x in lam) if min(lam) > 0 else None
         worst = None if None in rep.sessions_for_target else max(rep.sessions_for_target)
-        scores.append((order, DesignScore(rep.design, rep.verdict, ld, worst, rep.energy_per_session)))
+        scores.append((order, DesignScore(rep.design, rep.verdict, rep.scope, ld, worst, rep.energy_per_session)))
     rank = {"GO": 0, "AMBIGUOUS": 1, "NO-GO": 2}
 
     def key(t):

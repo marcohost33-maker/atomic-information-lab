@@ -5,6 +5,11 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Changed -- identifiability scope (cross-family R25, AIL-R25-01)
+- `IdentifiabilityReport.scope` and `DesignScore.scope` (`SCOPE[verdict]`), also in
+  the CLI JSON and `reproduce --table identifiability`: `GO` is a local statement
+  and is never emitted without its scope. Finding N-22.
+
 ### Added -- experimental identifiability (roadmap R13/P0)
 - `identifiability.py`: `Calibration` (planning model plus `prep_error`,
   `bias_prior`), `Design` (fixed sequence, optional known writes),
