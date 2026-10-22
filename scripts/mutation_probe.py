@@ -40,6 +40,8 @@ SIMULATION = "tests/test_generative_simulation.py"
 CROSS = "tests/test_policy_cross_evaluation.py"
 RETENTION_FILE = "atomic_information_lab/retention.py"
 RETENTION = "tests/test_retention.py"
+IDENT_FILE = "atomic_information_lab/identifiability.py"
+IDENT = "tests/test_identifiability.py"
 
 # id: (file, old, new, what it breaks, {suite: expected verdict})
 MUTANTS = {
@@ -133,6 +135,41 @@ MUTANTS = {
         "if best_j is None or j < best_j - 0.01:",
         "the Pareto pruning drops plans less than 0.01 cheaper: feasible but suboptimal deterministic values",
         {RETENTION: "relation"},
+    ),
+    "M14_prep_error_ignored_with_known_write": (
+        IDENT_FILE,
+        "[((0,), 0.5, eps), ((1,), 0.5, 1 - eps)]",
+        "[((0,), 0.5, 0 * eps), ((1,), 0.5, 1 - 0 * eps)]",
+        "a recorded write is treated as a perfect preparation",
+        {IDENT: "relation"},
+    ),
+    "M15_fisher_divides_by_p_squared": (
+        IDENT_FILE,
+        "gi = p.g[i] / p.v",
+        "gi = p.g[i] / p.v**2",
+        "Fisher information with the wrong weight 1/p^2 (ranks often unchanged, values wrong)",
+        {IDENT: "relation"},
+    ),
+    "M16_windows_ignore_reference_reads": (
+        IDENT_FILE,
+        "if not cal.action(name).reads_reference:",
+        "if True:",
+        "every read closes a back-action window, so the window witness is never found",
+        {IDENT: "relation"},
+    ),
+    "M17_rank_tolerance_too_loose": (
+        IDENT_FILE,
+        "if lk <= RANK_TOL:",
+        "if lk <= 1e-2:",
+        "weakly informative directions are called non-identifiable",
+        {IDENT: "relation"},
+    ),
+    "M18_no_zero_information_threshold": (
+        IDENT_FILE,
+        "ZERO_INFO_TOL = 1e-20",
+        "ZERO_INFO_TOL = 0.0",
+        "exact-in-theory zero information left as rounding noise (1e-33) is counted as information",
+        {IDENT: "relation"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")

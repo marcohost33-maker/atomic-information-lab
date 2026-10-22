@@ -112,3 +112,59 @@ def retention_table(horizon: int = 4, deltas=RETENTION_DELTAS) -> list[dict]:
             }
         )
     return rows
+
+
+IDENTIFIABILITY_DESIGN = ("fast", "reference", "precise", "reference", "fast", "precise")
+
+
+def identifiability_scenarios():
+    """(label, calibration, design, free) of the roadmap R13/P0 identifiability table."""
+    from .identifiability import Calibration, Design, parameter_names
+
+    cal = Calibration(prep_error=0.02)
+    every = parameter_names(cal)
+    anchored = tuple(f for f in every if f != "backaction:fast")  # fast read defines the rate unit
+    target_only = ("k01", "k10", "bias_flip", "error:fast", "error:precise", "backaction:precise")
+    d6 = IDENTIFIABILITY_DESIGN
+    return [
+        ("all free, unknown writes", cal, Design(d6), every),
+        ("all free, known writes", cal, Design(d6, True), every),
+        ("fast back-action fixed, unknown writes", cal, Design(d6), anchored),
+        (
+            "fast back-action fixed, known writes, periodic F-R-P",
+            cal,
+            Design(("fast", "reference", "precise") * 2, True),
+            anchored,
+        ),
+        ("fast back-action fixed, known writes", cal, Design(d6, True), anchored),
+        ("no reference read (target reads only)", cal, Design(("fast", "precise") * 2), target_only),
+        ("best 4-step design (D-optimal)", cal, Design(("fast", "precise", "reference", "precise"), True), anchored),
+    ]
+
+
+def identifiability_table() -> list[dict]:
+    """Which parameters calibration sessions can separate (roadmap R13/P0)."""
+    from .identifiability import identifiability
+
+    rows = []
+    for label, cal, design, free in identifiability_scenarios():
+        r = identifiability(cal, design, free)
+        worst = None
+        if r.locally_identifiable and None not in r.sessions_for_target:
+            i = max(range(len(r.free)), key=lambda k: r.sessions_for_target[k])
+            worst = [r.free[i], r.sessions_for_target[i]]
+        rows.append(
+            {
+                "scenario": label,
+                "design": list(design.sequence),
+                "known_write": design.known_write,
+                "free": len(r.free),
+                "rank": r.rank,
+                "verdict": r.verdict,
+                "witnesses": [w.name for w in r.witnesses],
+                "zero_information": list(r.zero_information),
+                "worst_parameter_sessions_for_10pct": worst,
+                "sessions_for_10pct": dict(zip(r.free, r.sessions_for_target, strict=True)),
+            }
+        )
+    return rows

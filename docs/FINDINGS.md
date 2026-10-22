@@ -75,7 +75,31 @@ against the oracle (mutation W15).
 | N-14 | Under an average (expected) limit, randomising between two policies is strictly better than every deterministic policy (e.g. 0.173 vs 0.211 at `delta = 0.08`, `h = 4`); the feasible side of the Lagrangian mixture is NOT the best deterministic policy (gap up to 0.058 in the tested grid). | new | Pareto-front DP vs exhaustive deterministic optimum |
 | N-15 | The R12 retention weight is exactly the Lagrange multiplier of F29: the expected-limit optimum is the R12 planner with weight `beta + mu*`, mixed. | CONFIRMED | duality gap 0 on all tested limits |
 
-## 6. Not checked
+## 6. R13/P0 experimental identifiability (2026-10-22, same-family; cross-family review pending)
+
+Model: the planning model plus a preparation error `prep_error` and a start
+probability `bias_prior` of the sensor inversion; sessions of a fixed design,
+optionally with the written bit recorded. Default parameters, `prep_error = 0.02`.
+
+| ID | Finding | Verdict | Evidence |
+|---|---|---|---|
+| N-16 | Drift and back-action are not separable: only `k·β` enters, so `(c·k, β/c)` gives the same distribution for every design. Separation needs an anchor (one back-action factor fixed). | new (NO-GO without anchor) | exact by construction; witness checked in every report; tangent lies in the Fisher null space |
+| N-17 | The preparation error carries zero information unless the written bit is recorded (`x_start` uniform for every `prep_error`). | new (NO-GO without known writes) | exact rational equality, control with known writes differs |
+| N-18 | Back-action is only visible as window sums between two target reads (the step generators commute). A periodic `fast, reference, precise` design cannot separate the reference from the precise back-action; a back-action factor after the last target read carries no information. | new | exact rational equality with a control that breaks it; window null space by exact elimination |
+| N-19 | Without a reference read, `k01 ↔ k10` (with `x ↔ 1−x`, `b ↔ 1−b`) is a global ambiguity although the Fisher matrix is regular; this is the identifiability side of PR-01 (without a reference `V = 0.25`). | new | exact rational equality; reference read as control |
+| N-20 | With anchor and known writes, the ten remaining parameters are locally identifiable from four readings per session on (none of the 54 designs of length 3, 12 of 162 of length 4). Cramér–Rao: the best 4-step design needs about 6.7 million sessions for 10 % on `prep_error`, the 6-step design of the table 374 000. Identifiable in principle, very expensive in practice. | new | exhaustive design search; CRLB checked against an exact inverse |
+| N-21 | The two R12 hypotheses are indistinguishable from one reading (both predict a uniform reading); four `precise` reads need 68 sessions for a Bayes error ≤ 1 % (Chernoff bound). | new | Chernoff information vs brute-force grid |
+
+Verification: package distribution vs explicit hidden-path enumeration
+(uniformisation, not the closed form) and vs chained `Problem.branches`;
+Fisher information vs central differences of the oracle; rank threshold
+`1e-9` on the scale-free matrix, zero-information threshold with a measured
+gap of 26 orders of magnitude; mutants M14–M18 (`scripts/mutation_probe.py`).
+Limits: Rothenberg's theorem is local and needs interior points (an error of
+0 is refused); a full rank is a numerical statement, a witness an exact one;
+only the default action catalogue and parameter point were searched.
+
+## 7. Not checked
 
 R6 figures, rounds R1–R7, the literature list of the earlier report, any
 statement about other projects, Python < 3.12.

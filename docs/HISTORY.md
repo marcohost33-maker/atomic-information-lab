@@ -16,6 +16,7 @@ synthetic classical models only.
 | R12 | finite set of static model hypotheses, retention penalty, reference back-action variants; 12 tests | merged into `Problem` (one code path for one or several hypotheses) |
 | 0.1.0 | consolidation, independent oracle, fail-closed fixes (rate overflow, NaN-safe mass guard), mutation probes | this repository |
 | R13 (P0, part) | hard retention limit `P(x_t != x0) <= delta` (pathwise and expected, F29) | `retention.py` (unreleased) |
+| R13 (P0, part) | experimental identifiability: Fisher rank, exact witnesses, Cramér–Rao session counts, design search | `identifiability.py` (unreleased) |
 
 ## Source bundles (SHA-256 of the archived ZIP files)
 

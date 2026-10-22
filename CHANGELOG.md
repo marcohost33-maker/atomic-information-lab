@@ -5,6 +5,17 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Added -- experimental identifiability (roadmap R13/P0)
+- `identifiability.py`: `Calibration` (planning model plus `prep_error`,
+  `bias_prior`), `Design` (fixed sequence, optional known writes),
+  `outcome_distribution`, `fisher_information` (exact forward-mode
+  derivatives), `identifiability` (rank, null space, structural witnesses,
+  Cramér–Rao session counts, verdict GO / NO-GO / AMBIGUOUS),
+  `discrimination` (KL, Chernoff information), `design_search`.
+- CLI `identify`, `reproduce --table identifiability`; findings N-16..N-21.
+- Limits: local (Rothenberg) statements need interior points; full rank is
+  numerical (tolerance `RANK_TOL`), witnesses exact; one parameter point.
+
 ### Added -- retention limit (roadmap R13/P0, formula F29)
 - `atomic_information_lab.retention`: planning under `P(x != x0) <= delta`,
   `solve_retention(problem, delta, horizon, mode)` with two readings:
