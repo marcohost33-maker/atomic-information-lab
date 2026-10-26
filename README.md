@@ -133,6 +133,73 @@ All values agree with exhaustive search over all 7 204 deterministic policies
 (`h = 3`) and with an independent exact dynamic program on the oracle's
 rational messages (`h = 4`), `tests/test_retention.py`.
 
+### Experimental identifiability (roadmap R13/P0)
+
+Before a planner can be trusted on an instrument, its parameters have to be
+measured. `identifiability.py` asks which of them calibration sessions can
+separate: drift (`k01`, `k10`), sensor bias (`bias_flip`, `bias_prior`,
+read errors), back-action factors and a **preparation error** `prep_error`
+(the bit is not in the written state before the first reading; the planner
+assumes 0). A session runs a fixed action sequence; with *known writes* the
+experimenter also records which bit was written.
+
+* **Fisher information** per session from exact forward-mode derivatives;
+  by Rothenberg (1971) a non-singular matrix means locally identifiable.
+  The null space is reported, and the Cramér–Rao bound gives a LOWER bound
+  on the sessions needed for a 10 % relative standard error (necessary, not
+  sufficient: no estimator is shown to reach it; `sessions_scope` =
+  `CRLB_NECESSARY_LOWER_BOUND_ONLY`). Every JSON object of `identify` and
+  `reproduce --table identifiability` that holds a count also holds
+  `sessions_scope` and says the same in words in `notes`; `identify --help`
+  says it for `--target-rse`. `tests/test_r28_consumer_contract.py` runs the
+  CLI as a process and checks this end to end.
+* **Structural witnesses**: a second parameter point with the same outcome
+  distribution, checked every time (difference ≤ 1e-13), each re-derived in
+  exact rational arithmetic in the tests. The list of known witnesses is not
+  exhaustive: GO means "locally identifiable, no known global ambiguity".
+
+Default parameters, `prep_error = 0.02`, design `fast, reference, precise,
+reference, fast, precise` unless stated
+(`python -m atomic_information_lab reproduce --table identifiability`):
+
+| scenario | verdict | rank | witness | sessions for 10 %, at least (worst parameter, CRLB) |
+|---|---|--:|---|--:|
+| all free, unknown writes | NO-GO | 9/11 | `drift_backaction_scale`, `prep_error_hidden` | — |
+| all free, known writes | NO-GO | 10/11 | `drift_backaction_scale` | — |
+| fast back-action fixed, unknown writes | NO-GO | 9/10 | `prep_error_hidden` | — |
+| fast back-action fixed, known writes, periodic F-R-P | NO-GO | 9/10 | `backaction_window` | — |
+| fast back-action fixed, known writes | GO | 10/10 | none | 373 950 (`prep_error`) |
+| no reference read (target reads only) | AMBIGUOUS | 6/6 | `label_swap` | 1 293 272 944 (`bias_flip`) |
+| best 4-step design (D-optimal) | GO | 10/10 | none | 6 687 058 (`prep_error`) |
+
+What this means:
+
+* **Drift and back-action are never separable on their own** — only the
+  products `k·β` enter the model. One action's back-action must be fixed by
+  definition or by an independent measurement (an anchor; here `fast`, `β = 1`).
+* **The preparation error is invisible unless the written bit is recorded**:
+  without known writes `x_start` is uniform for every `prep_error`.
+* **Back-action is seen only through windows**: the bit is observed only by
+  target reads, and all step generators are multiples of one rate matrix, so
+  only the *sum* of back-action factors between two target reads counts. In a
+  strictly periodic `fast, reference, precise` design the reference read is
+  always summed with the following precise read, and the two cannot be told
+  apart (exact witness).
+* **Without a reference read** `k01` and `k10` can be swapped (with `x ↔ 1−x`,
+  `b ↔ 1−b`) without changing any reading — locally identifiable, globally
+  ambiguous, and the Cramér–Rao bound alone already demands at least about 10⁹ sessions.
+* **GO needs at least four readings per session** (exhaustive search over all
+  162 designs of length 4; none of length 3 suffices), and even the best one
+  needs at least about 6.7 million sessions to pin the 2 % preparation error to 10 %.
+  The physically motivated next step is therefore not a larger planner but a
+  cheaper handle on `prep_error` and on the reference back-action.
+
+`discrimination` tells two model hypotheses apart: for the R12 pair a single
+reading carries no information (both predict a uniform reading), four
+`precise` reads reach a Bayes error ≤ 1 % after at most 68 sessions (Chernoff
+upper bound on the error of the likelihood-ratio test between the two known
+hypotheses: sufficient, not necessary -- fewer may do).
+
 See [docs/FINDINGS.md](docs/FINDINGS.md) for every audited claim and its
 verdict, including counter-examples.
 
@@ -196,6 +263,7 @@ python -m atomic_information_lab solve --horizon 4
 python -m atomic_information_lab solve --horizon 1 --forced
 python -m atomic_information_lab reproduce --table single
 python -m atomic_information_lab solve --horizon 4 --retention-limit 0.08 --retention-mode expected
+python -m atomic_information_lab identify --design fast,precise,reference,precise --known-write
 ```
 
 ```python
@@ -233,7 +301,7 @@ From section 13.1 of the R1–R12 report (2026-10-18):
 | Gate | Work package | Status |
 |---|---|---|
 | R13 / P0 | Hard retention / risk limits `P(x_t ≠ x0) ≤ δ`, violation → STOP | **done** (`retention.py`, both readings, oracle-verified) |
-| R13 / P0 | Experimental identifiability (preparation error, bias, drift, back-action separable or NO-GO) | open |
+| R13 / P0 | Experimental identifiability (preparation error, bias, drift, back-action separable or NO-GO) | **done** (`identifiability.py`: NO-GO without an anchor and known writes, GO from four readings; witnesses exact, Fisher rank numerical) |
 | R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | open (continuous line, no exact oracle yet) |
 | R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |
 | R15 / P2 | Laboratory integration (STM/AFM raw data); Hexa-NTK / CodeFactory adapters | open, outside this repository |

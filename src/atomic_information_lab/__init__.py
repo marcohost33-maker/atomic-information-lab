@@ -5,6 +5,13 @@ Research reference only. No hardware access, no instrument calibration, no
 quantum or atomic-physics validation claim.
 """
 
+from .identifiability import (
+    Calibration,
+    Design,
+    design_search,
+    discrimination,
+    identifiability,
+)
 from .model import (
     DEFAULT_ACTIONS,
     DEFAULT_HYPOTHESIS,
@@ -69,5 +76,10 @@ __all__ = [
     "retention_profile",
     "best_open_loop_retention",
     "best_deterministic_retention",
+    "Calibration",
+    "Design",
+    "identifiability",
+    "discrimination",
+    "design_search",
     "__version__",
 ]

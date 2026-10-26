@@ -5,6 +5,31 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Changed -- session counts say "lower bound" to every consumer (cross-family R28 Q2)
+- `SESSIONS_SCOPE_TEXT`: the scope of every Cramér–Rao session count in words
+  (lower bound; necessary, not sufficient). `IdentifiabilityReport.notes`
+  carries it whenever a count exists, `reproduce --table identifiability` rows
+  now pass the report's `notes` through (new key `notes`), and
+  `identify --help` states it for `--target-rse`. JSON key names unchanged.
+- README/FINDINGS: the Chernoff count of `discrimination` is a sufficient
+  count ("after at most 68 sessions"), not a necessary one. Finding N-24.
+
+### Changed -- identifiability scope (cross-family R25, AIL-R25-01)
+- `IdentifiabilityReport.scope` and `DesignScore.scope` (`SCOPE[verdict]`), also in
+  the CLI JSON and `reproduce --table identifiability`: `GO` is a local statement
+  and is never emitted without its scope. Finding N-22.
+
+### Added -- experimental identifiability (roadmap R13/P0)
+- `identifiability.py`: `Calibration` (planning model plus `prep_error`,
+  `bias_prior`), `Design` (fixed sequence, optional known writes),
+  `outcome_distribution`, `fisher_information` (exact forward-mode
+  derivatives), `identifiability` (rank, null space, structural witnesses,
+  Cramér–Rao session counts, verdict GO / NO-GO / AMBIGUOUS),
+  `discrimination` (KL, Chernoff information), `design_search`.
+- CLI `identify`, `reproduce --table identifiability`; findings N-16..N-21.
+- Limits: local (Rothenberg) statements need interior points; full rank is
+  numerical (tolerance `RANK_TOL`), witnesses exact; one parameter point.
+
 ### Added -- retention limit (roadmap R13/P0, formula F29)
 - `atomic_information_lab.retention`: planning under `P(x != x0) <= delta`,
   `solve_retention(problem, delta, horizon, mode)` with two readings:
