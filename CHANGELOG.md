@@ -5,6 +5,15 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Changed -- session counts say "lower bound" to every consumer (cross-family R28 Q2)
+- `SESSIONS_SCOPE_TEXT`: the scope of every Cramér–Rao session count in words
+  (lower bound; necessary, not sufficient). `IdentifiabilityReport.notes`
+  carries it whenever a count exists, `reproduce --table identifiability` rows
+  now pass the report's `notes` through (new key `notes`), and
+  `identify --help` states it for `--target-rse`. JSON key names unchanged.
+- README/FINDINGS: the Chernoff count of `discrimination` is a sufficient
+  count ("after at most 68 sessions"), not a necessary one. Finding N-24.
+
 ### Changed -- identifiability scope (cross-family R25, AIL-R25-01)
 - `IdentifiabilityReport.scope` and `DesignScore.scope` (`SCOPE[verdict]`), also in
   the CLI JSON and `reproduce --table identifiability`: `GO` is a local statement

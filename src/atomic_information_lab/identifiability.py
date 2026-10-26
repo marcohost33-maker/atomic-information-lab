@@ -33,15 +33,19 @@ Three tools, each with its own evidence:
    information is non-singular. Rank is decided on the scale-free matrix
    ``D^-1/2 F D^-1/2`` (``D = diag F``) with tolerance ``RANK_TOL``; its
    null space is reported in the original coordinates.
-3. **Cramer-Rao bounds**: ``sqrt((F^-1)_ii / N)`` is the smallest standard
-   error any unbiased estimator can reach with N sessions; reported as the
-   number of sessions needed for a 10 % relative standard error. A full rank
-   with an astronomically large session count is identifiable in principle
-   but not in practice.
+3. **Cramer-Rao bounds**: ``sqrt((F^-1)_ii / N)`` bounds from below the
+   standard error of every unbiased estimator with N sessions (under
+   regularity conditions); reported as a LOWER bound on the number of
+   sessions for a 10 % relative standard error. The count is necessary, not
+   sufficient: no estimator is shown to reach the bound (``SESSIONS_SCOPE``,
+   ``SESSIONS_SCOPE_TEXT``). A full rank with an astronomically large
+   session count is identifiable in principle but not in practice.
 
 ``discrimination`` compares two calibrations on one design (KL divergence and
 Chernoff information, with the number of sessions after which the equal-prior
-Bayes error is guaranteed below ``alpha``); ``design_search`` ranks all fixed
+Bayes error of the likelihood-ratio test between the two KNOWN calibrations is
+guaranteed below ``alpha`` -- a sufficient count from an upper bound on the
+error, not a necessary one: fewer sessions may do); ``design_search`` ranks all fixed
 sequences of a given length.
 
 Limits: synthetic classical model; the regularity conditions of Rothenberg's
@@ -70,6 +74,7 @@ __all__ = [
     "DesignScore",
     "SCOPE",
     "SESSIONS_SCOPE",
+    "SESSIONS_SCOPE_TEXT",
     "MAX_DESIGN_LENGTH",
     "MAX_SEARCH_DESIGNS",
     "RANK_TOL",
@@ -96,6 +101,12 @@ SCOPE = {
 # limits the variance of UNBIASED estimators under regularity conditions; no estimator is shown to reach
 # it. A count is therefore necessary, never sufficient, for the target precision.
 SESSIONS_SCOPE = "CRLB_NECESSARY_LOWER_BOUND_ONLY"
+# The same scope in words, for every human-facing consumer of a count (AIL-R28 Q2): the report notes,
+# hence the CLI JSON and the reproduce table, and the CLI help. ASCII on purpose (console encodings).
+SESSIONS_SCOPE_TEXT = (
+    "session counts are Cramer-Rao lower bounds (sessions_scope=CRLB_NECESSARY_LOWER_BOUND_ONLY): "
+    "necessary, not sufficient, for the target relative standard error; no estimator is shown to reach them"
+)
 MAX_SEARCH_DESIGNS = 2048
 RANK_TOL = 1e-9  # eigenvalue of the scale-free Fisher matrix (diagonal 1) counted as zero
 # Information about a relative change of a parameter, F_ii * value**2 (value 0: F_ii), below which the
@@ -522,7 +533,7 @@ class IdentifiabilityReport:
     null_directions: tuple[tuple[float, ...], ...]  # original coordinates, largest entry +1
     witnesses: tuple[Witness, ...]
     relative_crlb: tuple[float | None, ...]  # per session: sqrt((F^-1)_ii) / |value|
-    sessions_for_target: tuple[int | None, ...]  # sessions for relative SE <= target_rse
+    sessions_for_target: tuple[int | None, ...]  # LOWER bound on sessions for relative SE <= target_rse
     sessions_scope: str  # SESSIONS_SCOPE: lower bound only
     target_rse: float
     energy_per_session: float
@@ -587,6 +598,8 @@ def identifiability(
         rel.append(r)
         sess.append(max(1, ceil((r / target_rse) ** 2)))
     notes = []
+    if any(s is not None for s in sess):
+        notes.append(SESSIONS_SCOPE_TEXT)
     if any(v == 0.0 for v in values):
         notes.append("a free parameter sits on the boundary (value 0): Rothenberg's regularity conditions fail there")
     energy = sum(calibration.action(a).energy for a in design.sequence)
@@ -684,7 +697,7 @@ class DesignScore:
     verdict: str
     scope: str  # SCOPE[verdict]
     log_det: float | None  # log det of the per-session Fisher information (D-optimality); None if singular
-    worst_sessions: int | None  # max over parameters of the sessions needed for target_rse
+    worst_sessions: int | None  # max over parameters of the LOWER bound on sessions for target_rse
     sessions_scope: str  # SESSIONS_SCOPE: worst_sessions is a lower bound, not a guarantee
     energy_per_session: float
 
@@ -699,7 +712,8 @@ def design_search(
     """Score every fixed sequence of ``length`` actions; best first.
 
     Order: verdict GO first, then larger ``log_det`` (D-optimal), then fewer
-    sessions for the worst parameter, then less energy, then catalogue order.
+    sessions for the worst parameter (a Cramer-Rao LOWER bound, ``sessions_scope``),
+    then less energy, then catalogue order.
     """
     if isinstance(length, bool) or not isinstance(length, int) or not 1 <= length <= MAX_DESIGN_LENGTH:
         raise ValueError(f"length must be an int in 1..{MAX_DESIGN_LENGTH}")

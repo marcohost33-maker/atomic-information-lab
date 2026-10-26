@@ -148,7 +148,11 @@ experimenter also records which bit was written.
   The null space is reported, and the Cramér–Rao bound gives a LOWER bound
   on the sessions needed for a 10 % relative standard error (necessary, not
   sufficient: no estimator is shown to reach it; `sessions_scope` =
-  `CRLB_NECESSARY_LOWER_BOUND_ONLY`).
+  `CRLB_NECESSARY_LOWER_BOUND_ONLY`). Every JSON object of `identify` and
+  `reproduce --table identifiability` that holds a count also holds
+  `sessions_scope` and says the same in words in `notes`; `identify --help`
+  says it for `--target-rse`. `tests/test_r28_consumer_contract.py` runs the
+  CLI as a process and checks this end to end.
 * **Structural witnesses**: a second parameter point with the same outcome
   distribution, checked every time (difference ≤ 1e-13), each re-derived in
   exact rational arithmetic in the tests. The list of known witnesses is not
@@ -183,7 +187,7 @@ What this means:
   apart (exact witness).
 * **Without a reference read** `k01` and `k10` can be swapped (with `x ↔ 1−x`,
   `b ↔ 1−b`) without changing any reading — locally identifiable, globally
-  ambiguous, and the Cramér–Rao bound alone already demands about 10⁹ sessions.
+  ambiguous, and the Cramér–Rao bound alone already demands at least about 10⁹ sessions.
 * **GO needs at least four readings per session** (exhaustive search over all
   162 designs of length 4; none of length 3 suffices), and even the best one
   needs at least about 6.7 million sessions to pin the 2 % preparation error to 10 %.
@@ -192,7 +196,9 @@ What this means:
 
 `discrimination` tells two model hypotheses apart: for the R12 pair a single
 reading carries no information (both predict a uniform reading), four
-`precise` reads need 68 sessions for a Bayes error ≤ 1 % (Chernoff bound).
+`precise` reads reach a Bayes error ≤ 1 % after at most 68 sessions (Chernoff
+upper bound on the error of the likelihood-ratio test between the two known
+hypotheses: sufficient, not necessary -- fewer may do).
 
 See [docs/FINDINGS.md](docs/FINDINGS.md) for every audited claim and its
 verdict, including counter-examples.

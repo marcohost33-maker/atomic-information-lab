@@ -167,6 +167,9 @@ def identifiability_table() -> list[dict]:
                 "worst_parameter_sessions_for_10pct": worst,
                 "sessions_for_10pct": dict(zip(r.free, r.sessions_for_target, strict=True)),
                 "sessions_scope": r.sessions_scope,
+                # the report's notes travel with the counts: they say in words that the counts are lower
+                # bounds (AIL-R28 Q2) and carry the boundary warning when a free parameter is 0
+                "notes": list(r.notes),
             }
         )
     return rows

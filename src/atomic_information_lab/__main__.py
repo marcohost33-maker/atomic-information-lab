@@ -8,6 +8,7 @@ import json
 import math
 import sys
 
+from .identifiability import SESSIONS_SCOPE_TEXT
 from .model import DEFAULT_ACTIONS, Hypothesis, Objective, Problem
 from .planner import MAX_HORIZON, solve
 from .reproduce import (
@@ -73,7 +74,12 @@ def _build_parser() -> argparse.ArgumentParser:
     ip.add_argument("--bias-flip", type=_finite_float, default=0.025)
     ip.add_argument("--prep-error", type=_finite_float, default=0.02)
     ip.add_argument("--bias-prior", type=_finite_float, default=0.5)
-    ip.add_argument("--target-rse", type=_finite_float, default=0.1)
+    ip.add_argument(
+        "--target-rse",
+        type=_finite_float,
+        default=0.1,
+        help=f"target relative standard error (default 0.1); {SESSIONS_SCOPE_TEXT}",
+    )
     return ap
 
 
