@@ -42,6 +42,8 @@ RETENTION_FILE = "atomic_information_lab/retention.py"
 RETENTION = "tests/test_retention.py"
 IDENT_FILE = "atomic_information_lab/identifiability.py"
 IDENT = "tests/test_identifiability.py"
+ESTIM_FILE = "atomic_information_lab/estimation.py"
+R29 = "tests/test_r29_estimator_scope.py"
 
 # id: (file, old, new, what it breaks, {suite: expected verdict})
 MUTANTS = {
@@ -170,6 +172,41 @@ MUTANTS = {
         "ZERO_INFO_TOL = 0.0",
         "exact-in-theory zero information left as rounding noise (1e-33) is counted as information",
         {IDENT: "relation"},
+    ),
+    "M19_scope_back_to_necessary": (
+        IDENT_FILE,
+        'SESSIONS_SCOPE = "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"',
+        'SESSIONS_SCOPE = "CRLB_NECESSARY_LOWER_BOUND_ONLY"',
+        "the R27 token returns: the count is called necessary without the unbiasedness condition (AIL-R29-01)",
+        {R29: "relation"},
+    ),
+    "M20_discrimination_without_scope": (
+        IDENT_FILE,
+        "    sessions_scope: str = DISCRIMINATION_SCOPE\n",
+        "",
+        "the sufficient Chernoff count reaches Python consumers without a machine-readable scope",
+        {R29: "relation"},
+    ),
+    "M21_chernoff_count_without_one_half": (
+        IDENT_FILE,
+        "ceil(log(1 / (2 * alpha)) / c)",
+        "ceil(log(1 / alpha) / c)",
+        "the factor 1/2 of the equal-prior Bayes error is dropped: the count is still sufficient but larger",
+        {R29: "relation"},
+    ),
+    "M22_failed_fits_dropped": (
+        ESTIM_FILE,
+        "failures[reason] = failures.get(reason, 0) + 1",
+        "pass",
+        "failed MLE fits vanish from the report instead of being counted",
+        {R29: "relation"},
+    ),
+    "M23_mle_stops_after_one_step": (
+        ESTIM_FILE,
+        "if rel < _REL_STEP_TOL:",
+        "if True:",
+        "Fisher scoring stops after one step and calls the result converged",
+        {R29: "relation"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")

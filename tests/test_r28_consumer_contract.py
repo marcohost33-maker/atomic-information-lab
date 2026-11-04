@@ -1,15 +1,15 @@
 """AIL-R28 Q2: the CRLB scope reaches every consumer of a session count, end to end.
 
-R27 put ``sessions_scope = CRLB_NECESSARY_LOWER_BOUND_ONLY`` on the report, the design search, the
-CLI JSON and the reproduce table, checked by reading the field name once. R28 asks for more: a
-field name read back is not the consumer chain. These tests run the installed entry point as a
-real process (``python -m atomic_information_lab``), parse what a user or a downstream program
-actually receives, and check two invariants:
+R27 put ``sessions_scope`` (today ``CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY``, AIL-R29-01) on the
+report, the design search, the CLI JSON and the reproduce table, checked by reading the field
+name once. R28 asks for more: a field name read back is not the consumer chain. These tests run
+the installed entry point as a real process (``python -m atomic_information_lab``), parse what a
+user or a downstream program actually receives, and check two invariants:
 
 * **structure** -- every JSON object that carries a session count (any key containing
   ``sessions``, or ``crlb``) also carries ``sessions_scope`` with the literal lower-bound token;
 * **text** -- every object with at least one numeric count also says in words that it is a lower
-  bound, necessary and not sufficient; no string anywhere in the output, the help text or the
+  bound for unbiased estimators and not sufficient; no string anywhere in the output, the help text or the
   error stream promises that a number of sessions is required, needed, enough or guaranteed.
 
 Positive controls make sure no check is vacuous: the walker must find sites, and at least one of
@@ -28,7 +28,8 @@ import pytest
 SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
 ENV = {**os.environ, "PYTHONPATH": str(SRC), "PYTHONIOENCODING": "utf-8"}
 # Literal on purpose: comparing against the imported constant would follow a mutation of it.
-TOKEN = "CRLB_NECESSARY_LOWER_BOUND_ONLY"
+# R29 narrowed the R27 token CRLB_NECESSARY_LOWER_BOUND_ONLY: "necessary" holds for unbiased estimators only.
+TOKEN = "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
 COUNT_KEY = re.compile(r"sessions|crlb")
 # Promise phrasing about a number of sessions (English and German). "required" alone is not on the
 # list: "sessions with known writes are required" is a true statement about the design, not a count.
@@ -45,7 +46,11 @@ PROMISE = [
         r"garantier",
     )
 ]
-LOWER_BOUND = (re.compile(r"lower bound", re.IGNORECASE), re.compile(r"necessary, not sufficient", re.IGNORECASE))
+LOWER_BOUND = (
+    re.compile(r"lower bound", re.IGNORECASE),
+    re.compile(r"\bunbiased\b", re.IGNORECASE),  # AIL-R29-01: the condition under which it is a bound
+    re.compile(r"not sufficient", re.IGNORECASE),
+)
 
 
 def _run(*args: str) -> subprocess.CompletedProcess:
@@ -171,7 +176,7 @@ def test_identify_rejects_bad_target_without_a_count(rse):
 
 def test_walker_and_wordlist_catch_what_they_are_for():
     """Self-check of the contract helpers on hand-made output (the tool against its own class)."""
-    note = "lower bound; necessary, not sufficient"
+    note = "lower bound for unbiased estimators; not sufficient"
     good = {"a": {"sessions_for_target": [5, None], "sessions_scope": TOKEN, "notes": [note]}}
     assert _check_contract(good, True) == 1
     with pytest.raises(AssertionError, match="sessions_scope"):

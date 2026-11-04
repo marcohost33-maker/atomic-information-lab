@@ -1,9 +1,10 @@
 """AIL-R27-01: every session count from the Fisher information is a lower bound, and says so.
 
 The Cramér–Rao bound limits the variance of unbiased estimators under regularity conditions.
-No estimator is shown to reach it, so ``sessions_for_target`` is necessary, never sufficient,
-for the target precision. The scope travels with the count through the report, the design
-search, the CLI JSON and the reproduce table.
+No estimator is shown to reach it, so ``sessions_for_target`` is never sufficient for the target
+precision, and "necessary" holds for unbiased regular estimators only (AIL-R29-01: a biased
+estimator is not bound by it; see test_r29_estimator_scope.py). The scope travels with the count
+through the report, the design search, the CLI JSON and the reproduce table.
 """
 
 import json
@@ -17,7 +18,7 @@ from atomic_information_lab.reproduce import identifiability_table
 
 
 def test_sessions_scope_names_a_lower_bound():
-    assert SESSIONS_SCOPE == "CRLB_NECESSARY_LOWER_BOUND_ONLY"
+    assert SESSIONS_SCOPE == "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"  # narrowed by AIL-R29-01
 
 
 def test_report_and_design_search_carry_sessions_scope():
@@ -38,7 +39,7 @@ def test_cli_json_and_table_carry_sessions_scope(capsys):
 
 
 def test_crlb_is_not_reached_by_a_natural_estimator_exact():
-    """Independent oracle (R27): the bound is necessary, not sufficient.
+    """Independent oracle (R27): the bound is not sufficient.
 
     Two Bernoulli(p) readings, p = 1/2, target theta = p^2, plug-in estimator (k/2)^2. Exact
     rational arithmetic, no use of the module. Its mean squared error exceeds the Cramér–Rao

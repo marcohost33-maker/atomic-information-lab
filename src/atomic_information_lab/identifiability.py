@@ -34,19 +34,24 @@ Three tools, each with its own evidence:
    ``D^-1/2 F D^-1/2`` (``D = diag F``) with tolerance ``RANK_TOL``; its
    null space is reported in the original coordinates.
 3. **Cramer-Rao bounds**: ``sqrt((F^-1)_ii / N)`` bounds from below the
-   standard error of every unbiased estimator with N sessions (under
-   regularity conditions); reported as a LOWER bound on the number of
-   sessions for a 10 % relative standard error. The count is necessary, not
-   sufficient: no estimator is shown to reach the bound (``SESSIONS_SCOPE``,
-   ``SESSIONS_SCOPE_TEXT``). A full rank with an astronomically large
-   session count is identifiable in principle but not in practice.
+   standard error of every UNBIASED estimator with N sessions (under
+   regularity conditions), at this parameter point and in this model;
+   reported as a lower bound on the number of sessions such an estimator
+   needs for a 10 % relative standard error. It is not sufficient (no
+   estimator is guaranteed to reach it at finite N) and it is not a lower
+   bound for biased estimators, whose mean squared error can be smaller --
+   a constant estimator has error 0 at its own point (AIL-R29-01;
+   ``SESSIONS_SCOPE``, ``SESSIONS_SCOPE_TEXT``). Whether the MLE reaches it
+   is measured, not assumed: ``estimation.estimator_calibration``. A full
+   rank with an astronomically large session count is identifiable in
+   principle but not in practice.
 
 ``discrimination`` compares two calibrations on one design (KL divergence and
 Chernoff information, with the number of sessions after which the equal-prior
 Bayes error of the likelihood-ratio test between the two KNOWN calibrations is
 guaranteed below ``alpha`` -- a sufficient count from an upper bound on the
-error, not a necessary one: fewer sessions may do); ``design_search`` ranks all fixed
-sequences of a given length.
+error, not a necessary one: fewer sessions may do; ``DISCRIMINATION_SCOPE``);
+``design_search`` ranks all fixed sequences of a given length.
 
 Limits: synthetic classical model; the regularity conditions of Rothenberg's
 theorem fail on the boundary of the parameter space (an ``error`` of 0 makes
@@ -75,6 +80,8 @@ __all__ = [
     "SCOPE",
     "SESSIONS_SCOPE",
     "SESSIONS_SCOPE_TEXT",
+    "DISCRIMINATION_SCOPE",
+    "DISCRIMINATION_SCOPE_TEXT",
     "MAX_DESIGN_LENGTH",
     "MAX_SEARCH_DESIGNS",
     "RANK_TOL",
@@ -97,15 +104,28 @@ SCOPE = {
     "AMBIGUOUS": "LOCAL_ONLY_GLOBAL_REFUTED_BY_WITNESS",
     "GO": "LOCAL_ONLY_GLOBAL_UNPROVEN",
 }
-# Scope of every session count derived from the Fisher information (AIL-R27-01). The Cramér–Rao bound
-# limits the variance of UNBIASED estimators under regularity conditions; no estimator is shown to reach
-# it. A count is therefore necessary, never sufficient, for the target precision.
-SESSIONS_SCOPE = "CRLB_NECESSARY_LOWER_BOUND_ONLY"
+# Scope of every session count derived from the Fisher information (AIL-R27-01, narrowed by AIL-R29-01).
+# The Cramér–Rao bound limits the variance of UNBIASED estimators under regularity conditions, at one
+# parameter point of one model. It is not sufficient for the target precision, and it is no lower bound
+# for biased estimators (their MSE can be smaller), so "necessary" holds for unbiased regular estimators
+# only. R27's token CRLB_NECESSARY_LOWER_BOUND_ONLY said "necessary" without that condition.
+SESSIONS_SCOPE = "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
 # The same scope in words, for every human-facing consumer of a count (AIL-R28 Q2): the report notes,
 # hence the CLI JSON and the reproduce table, and the CLI help. ASCII on purpose (console encodings).
 SESSIONS_SCOPE_TEXT = (
-    "session counts are Cramer-Rao lower bounds (sessions_scope=CRLB_NECESSARY_LOWER_BOUND_ONLY): "
-    "necessary, not sufficient, for the target relative standard error; no estimator is shown to reach them"
+    "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): "
+    "a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard "
+    "error, at this parameter point of this model; not sufficient, and no lower bound for biased "
+    "estimators, whose mean squared error can be smaller"
+)
+# Scope of Discrimination.sessions_for_error (AIL-R29 consumer inventory): an upper bound on the Bayes
+# error of the likelihood-ratio test between two KNOWN calibrations gives a SUFFICIENT count.
+DISCRIMINATION_SCOPE = "CHERNOFF_SUFFICIENT_KNOWN_PAIR_ONLY"
+DISCRIMINATION_SCOPE_TEXT = (
+    "sessions_for_error is sufficient, not necessary (sessions_scope: CHERNOFF_SUFFICIENT_KNOWN_PAIR_ONLY): "
+    "after that many sessions the equal-prior Bayes error of the likelihood-ratio test between the two "
+    "KNOWN calibrations is at most 0.5*exp(-N*C) <= alpha; fewer sessions may do; it says nothing about "
+    "estimating unknown parameters"
 )
 MAX_SEARCH_DESIGNS = 2048
 RANK_TOL = 1e-9  # eigenvalue of the scale-free Fisher matrix (diagonal 1) counted as zero
@@ -633,9 +653,12 @@ class Discrimination:
     kl_ba: float
     chernoff: float  # Chernoff information per session, nats
     chernoff_lambda: float
-    sessions_for_error: int | None  # N with equal-prior Bayes error <= 0.5 * exp(-N C) <= alpha
+    sessions_for_error: int | None  # N with equal-prior Bayes error <= 0.5 * exp(-N C) <= alpha (sufficient)
     alpha: float
     energy_per_session: float
+    # appended with defaults so positional construction stays compatible (AIL-R29 consumer inventory)
+    sessions_scope: str = DISCRIMINATION_SCOPE
+    notes: tuple[str, ...] = (DISCRIMINATION_SCOPE_TEXT,)
 
 
 def _kl(p: Mapping, q: Mapping) -> float:

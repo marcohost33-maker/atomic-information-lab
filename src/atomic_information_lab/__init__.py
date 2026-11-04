@@ -5,6 +5,7 @@ Research reference only. No hardware access, no instrument calibration, no
 quantum or atomic-physics validation claim.
 """
 
+from .estimation import estimator_calibration, fit_mle
 from .identifiability import (
     Calibration,
     Design,
@@ -81,5 +82,7 @@ __all__ = [
     "identifiability",
     "discrimination",
     "design_search",
+    "estimator_calibration",
+    "fit_mle",
     "__version__",
 ]
