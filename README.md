@@ -145,10 +145,12 @@ experimenter also records which bit was written.
 
 * **Fisher information** per session from exact forward-mode derivatives;
   by Rothenberg (1971) a non-singular matrix means locally identifiable.
-  The null space is reported, and the Cramér–Rao bound gives a LOWER bound
-  on the sessions needed for a 10 % relative standard error (necessary, not
-  sufficient: no estimator is shown to reach it; `sessions_scope` =
-  `CRLB_NECESSARY_LOWER_BOUND_ONLY`). Every JSON object of `identify` and
+  The null space is reported, and the Cramér–Rao bound gives a lower bound
+  on the sessions an **unbiased** regular estimator needs for a 10 % relative
+  standard error, at this parameter point of this model. It is not
+  sufficient, and it is no lower bound for biased estimators, whose mean
+  squared error can be smaller (`sessions_scope` =
+  `CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY`, AIL-R29-01). Every JSON object of `identify` and
   `reproduce --table identifiability` that holds a count also holds
   `sessions_scope` and says the same in words in `notes`; `identify --help`
   says it for `--target-rse`. `tests/test_r28_consumer_contract.py` runs the
@@ -198,7 +200,37 @@ What this means:
 reading carries no information (both predict a uniform reading), four
 `precise` reads reach a Bayes error ≤ 1 % after at most 68 sessions (Chernoff
 upper bound on the error of the likelihood-ratio test between the two known
-hypotheses: sufficient, not necessary -- fewer may do).
+hypotheses: sufficient, not necessary -- fewer may do; `Discrimination`
+carries `sessions_scope = CHERNOFF_SUFFICIENT_KNOWN_PAIR_ONLY`). A Monte-Carlo
+check (`scripts/chernoff_check.py`, seed 20261104) puts the actual error at
+68 sessions at 0.0021 ± 0.0002 and below 1 % already between 40 and 50
+sessions; on a small binary case the exact Bayes error confirms the direction
+(reported 47 / 162, exact minimum 32 / 112, `tests/test_r29_estimator_scope.py`).
+
+### Does an actual estimator reach the Cramér–Rao counts? (R29 P1)
+
+`estimation.py` fits the maximum-likelihood estimator to simulated outcome
+counts (exact multinomial draws; Fisher scoring started 20 % away from the
+truth; failed fits counted, not dropped) and measures bias, relative standard
+error and coverage of the 95 % Wald interval against the bound. Protocol
+fixed in [docs/ESTIMATOR_PROTOCOL.md](docs/ESTIMATOR_PROTOCOL.md) before the
+run (separate commit); results in `docs/ESTIMATOR_CALIBRATION_RESULTS.json`
+(`python scripts/estimator_calibration.py`, R = 1000 per N, about 5 min).
+6-step design of the table, known writes, anchor `fast`:
+
+| sessions N | converged | `prep_error` RSE (CRLB) | `backaction:reference` bias / RSE (CRLB) | coverage range, 10 parameters |
+|--:|--:|--:|--:|--:|
+| 23 372 (count / 16) | 992 / 1000 | 0.381 (0.400) | +7.3 % / 0.397 (0.352) | 0.942–0.964 |
+| 93 488 (count / 4) | 1000 / 1000 | 0.201 (0.200) | +0.3 % / 0.179 (0.176) | 0.936–0.956 |
+| **373 950 (count)** | 1000 / 1000 | **0.098** (0.100) | +0.4 % / 0.088 (0.088) | 0.940–0.953 |
+| 1 495 800 (count · 4) | 1000 / 1000 | 0.049 (0.050) | +0.1 % / 0.043 (0.044) | 0.939–0.956 |
+
+Pre-registered primary endpoint met: at the Cramér–Rao count the MLE reaches
+the 10 % target on `prep_error` (0.098). From a quarter of the count on, the
+MLE is efficient here within Monte-Carlo error; at a sixteenth the asymptotics
+break (boundary failures, back-action biased upwards). Model-internal: the
+data come from the fitted model, one point, one design -- this calibrates the
+count as a planning figure *inside the model*, not on an instrument.
 
 See [docs/FINDINGS.md](docs/FINDINGS.md) for every audited claim and its
 verdict, including counter-examples.

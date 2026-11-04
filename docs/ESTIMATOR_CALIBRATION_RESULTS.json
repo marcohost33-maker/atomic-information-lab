@@ -1,0 +1,668 @@
+{
+ "protocol": "docs/ESTIMATOR_PROTOCOL.md",
+ "replications": 1000,
+ "protocol_replications": 1000,
+ "python": "3.13.18",
+ "seconds": 284.8,
+ "runs": [
+  {
+   "design": {
+    "sequence": [
+     "fast",
+     "reference",
+     "precise",
+     "reference",
+     "fast",
+     "precise"
+    ],
+    "known_write": true
+   },
+   "free": [
+    "k01",
+    "k10",
+    "bias_flip",
+    "prep_error",
+    "bias_prior",
+    "error:fast",
+    "error:precise",
+    "error:reference",
+    "backaction:precise",
+    "backaction:reference"
+   ],
+   "sessions": 23372,
+   "replications": 1000,
+   "converged": 992,
+   "failures": [
+    [
+     "no admissible ascent step (boundary)",
+     8
+    ]
+   ],
+   "seed": 20261104,
+   "start_offset": 0.2,
+   "level": 0.95,
+   "parameters": [
+    {
+     "name": "k01",
+     "true_value": 0.07,
+     "crlb_rse": 0.14097706020037246,
+     "relative_bias": -0.010495719065013532,
+     "relative_bias_mcse": 0.004346282002884875,
+     "empirical_rse": 0.13689063485356534,
+     "empirical_rrmse": 0.1372235980509739,
+     "rse_ratio": 0.9710135440404345,
+     "coverage": 0.9596774193548387,
+     "coverage_mcse": 0.006245697723691205
+    },
+    {
+     "name": "k10",
+     "true_value": 0.045,
+     "crlb_rse": 0.1486545423652407,
+     "relative_bias": -0.010446352392866497,
+     "relative_bias_mcse": 0.004572089809091387,
+     "empirical_rse": 0.14400268462989896,
+     "empirical_rrmse": 0.14430868114466186,
+     "rse_ratio": 0.9687069250537111,
+     "coverage": 0.9586693548387096,
+     "coverage_mcse": 0.006319965079068637
+    },
+    {
+     "name": "bias_flip",
+     "true_value": 0.025,
+     "crlb_rse": 0.04487856210779069,
+     "relative_bias": -0.00032754902403481223,
+     "relative_bias_mcse": 0.0014431330729755298,
+     "empirical_rse": 0.045452964719424734,
+     "empirical_rrmse": 0.04543122997544861,
+     "rse_ratio": 1.0127990422298832,
+     "coverage": 0.9536290322580645,
+     "coverage_mcse": 0.006676624869633636
+    },
+    {
+     "name": "prep_error",
+     "true_value": 0.02,
+     "crlb_rse": 0.3999985481727821,
+     "relative_bias": 0.029334393468342067,
+     "relative_bias_mcse": 0.012081748888688487,
+     "empirical_rse": 0.3805271435254664,
+     "empirical_rrmse": 0.3814648672467716,
+     "rse_ratio": 0.9513213116990993,
+     "coverage": 0.9616935483870968,
+     "coverage_mcse": 0.006093944258916205
+    },
+    {
+     "name": "bias_prior",
+     "true_value": 0.5,
+     "crlb_rse": 0.007378392454101584,
+     "relative_bias": -0.0002870144189794921,
+     "relative_bias_mcse": 0.00022727812598013662,
+     "empirical_rse": 0.007158359014232976,
+     "empirical_rrmse": 0.007160504570685198,
+     "rse_ratio": 0.9701786749298904,
+     "coverage": 0.9536290322580645,
+     "coverage_mcse": 0.006676624869633636
+    },
+    {
+     "name": "error:fast",
+     "true_value": 0.12,
+     "crlb_rse": 0.019290630167868937,
+     "relative_bias": -0.0005416295480826135,
+     "relative_bias_mcse": 0.000611428806748659,
+     "empirical_rse": 0.019257580954946348,
+     "empirical_rrmse": 0.019255491206872557,
+     "rse_ratio": 0.9982867738049513,
+     "coverage": 0.9465725806451613,
+     "coverage_mcse": 0.007140082382391653
+    },
+    {
+     "name": "error:precise",
+     "true_value": 0.035,
+     "crlb_rse": 0.08588290858743322,
+     "relative_bias": 0.005092047335489886,
+     "relative_bias_mcse": 0.0027455991009860767,
+     "empirical_rse": 0.08647547576017647,
+     "empirical_rrmse": 0.08658174484030916,
+     "rse_ratio": 1.0068997101110053,
+     "coverage": 0.9475806451612904,
+     "coverage_mcse": 0.007076167269276876
+    },
+    {
+     "name": "error:reference",
+     "true_value": 0.025,
+     "crlb_rse": 0.045796998913259314,
+     "relative_bias": 0.0005234932652488367,
+     "relative_bias_mcse": 0.0015514796336007026,
+     "empirical_rse": 0.04886545140536357,
+     "empirical_rrmse": 0.04884362084443814,
+     "rse_ratio": 1.0670011696162884,
+     "coverage": 0.9415322580645161,
+     "coverage_mcse": 0.007449376535969081
+    },
+    {
+     "name": "backaction:precise",
+     "true_value": 3.5,
+     "crlb_rse": 0.12656977883999396,
+     "relative_bias": 0.028462204084212343,
+     "relative_bias_mcse": 0.004599095743898482,
+     "empirical_rse": 0.14485326440316343,
+     "empirical_rrmse": 0.14755139303958667,
+     "rse_ratio": 1.1444538003521596,
+     "coverage": 0.9637096774193549,
+     "coverage_mcse": 0.005937623943327572
+    },
+    {
+     "name": "backaction:reference",
+     "true_value": 0.55,
+     "crlb_rse": 0.3524129198793873,
+     "relative_bias": 0.0732149127390371,
+     "relative_bias_mcse": 0.012601474924351633,
+     "empirical_rse": 0.39689645111402866,
+     "empirical_rrmse": 0.40339610705115425,
+     "rse_ratio": 1.126225597091803,
+     "coverage": 0.9546370967741935,
+     "coverage_mcse": 0.0066071434823761965
+    }
+   ],
+   "scope": "MONTE_CARLO_MLE_MODEL_INTERNAL_ONE_POINT",
+   "notes": [
+    "model-internal Monte Carlo: data generated by the fitted model, one parameter point, one design, MLE only",
+    "crlb_rse bounds unbiased regular estimators; the MLE is biased at finite N, so rse_ratio < 1 does not contradict the bound and rse_ratio ~ 1 does not prove efficiency elsewhere"
+   ]
+  },
+  {
+   "design": {
+    "sequence": [
+     "fast",
+     "reference",
+     "precise",
+     "reference",
+     "fast",
+     "precise"
+    ],
+    "known_write": true
+   },
+   "free": [
+    "k01",
+    "k10",
+    "bias_flip",
+    "prep_error",
+    "bias_prior",
+    "error:fast",
+    "error:precise",
+    "error:reference",
+    "backaction:precise",
+    "backaction:reference"
+   ],
+   "sessions": 93488,
+   "replications": 1000,
+   "converged": 1000,
+   "failures": [],
+   "seed": 20261105,
+   "start_offset": 0.2,
+   "level": 0.95,
+   "parameters": [
+    {
+     "name": "k01",
+     "true_value": 0.07,
+     "crlb_rse": 0.07048853010018623,
+     "relative_bias": 0.0038765642966011905,
+     "relative_bias_mcse": 0.002236902333083603,
+     "empirical_rse": 0.07073706275888805,
+     "empirical_rrmse": 0.0708078813865575,
+     "rse_ratio": 1.0035258595738707,
+     "coverage": 0.941,
+     "coverage_mcse": 0.007451107300260817
+    },
+    {
+     "name": "k10",
+     "true_value": 0.045,
+     "crlb_rse": 0.07432727118262035,
+     "relative_bias": 0.003896595781614005,
+     "relative_bias_mcse": 0.0023739193073795506,
+     "empirical_rse": 0.07506991992768745,
+     "empirical_rrmse": 0.07513348683348023,
+     "rse_ratio": 1.009991605143722,
+     "coverage": 0.936,
+     "coverage_mcse": 0.007739767438366605
+    },
+    {
+     "name": "bias_flip",
+     "true_value": 0.025,
+     "crlb_rse": 0.022439281053895345,
+     "relative_bias": 0.0003970713610454424,
+     "relative_bias_mcse": 0.0006878916613587768,
+     "empirical_rse": 0.02175304433330972,
+     "empirical_rrmse": 0.021745790592547644,
+     "rse_ratio": 0.9694180611697228,
+     "coverage": 0.954,
+     "coverage_mcse": 0.006624499981130654
+    },
+    {
+     "name": "prep_error",
+     "true_value": 0.02,
+     "crlb_rse": 0.19999927408639104,
+     "relative_bias": -0.012475704011408358,
+     "relative_bias_mcse": 0.00635556996462775,
+     "empirical_rse": 0.20098076916779467,
+     "empirical_rrmse": 0.20126728372063693,
+     "rse_ratio": 1.0049074932190987,
+     "coverage": 0.944,
+     "coverage_mcse": 0.007270763371201131
+    },
+    {
+     "name": "bias_prior",
+     "true_value": 0.5,
+     "crlb_rse": 0.003689196227050792,
+     "relative_bias": 3.331646209270289e-05,
+     "relative_bias_mcse": 0.00011692566834357952,
+     "empirical_rse": 0.003697514289031586,
+     "empirical_rrmse": 0.003695815240555396,
+     "rse_ratio": 1.0022547084700462,
+     "coverage": 0.949,
+     "coverage_mcse": 0.006956938982052382
+    },
+    {
+     "name": "error:fast",
+     "true_value": 0.12,
+     "crlb_rse": 0.009645315083934469,
+     "relative_bias": -0.0005735661558878049,
+     "relative_bias_mcse": 0.0003151454762369512,
+     "empirical_rse": 0.009965774992072357,
+     "empirical_rrmse": 0.00997729084754986,
+     "rse_ratio": 1.0332244105401653,
+     "coverage": 0.939,
+     "coverage_mcse": 0.007568289106528638
+    },
+    {
+     "name": "error:precise",
+     "true_value": 0.035,
+     "crlb_rse": 0.04294145429371661,
+     "relative_bias": -0.00063846441509946,
+     "relative_bias_mcse": 0.0013787015616575516,
+     "empirical_rse": 0.04359837148468933,
+     "empirical_rrmse": 0.0435812438433118,
+     "rse_ratio": 1.0152979725949534,
+     "coverage": 0.956,
+     "coverage_mcse": 0.006485676526007139
+    },
+    {
+     "name": "error:reference",
+     "true_value": 0.025,
+     "crlb_rse": 0.022898499456629657,
+     "relative_bias": 0.0004549678926228651,
+     "relative_bias_mcse": 0.000710697333255766,
+     "empirical_rse": 0.02247422300095951,
+     "empirical_rrmse": 0.022467590092857717,
+     "rse_ratio": 0.9814714297557471,
+     "coverage": 0.952,
+     "coverage_mcse": 0.006759881655768837
+    },
+    {
+     "name": "backaction:precise",
+     "true_value": 3.5,
+     "crlb_rse": 0.06328488941999698,
+     "relative_bias": 0.0012955506901371244,
+     "relative_bias_mcse": 0.0020349082018509645,
+     "empirical_rse": 0.06434944747206713,
+     "empirical_rrmse": 0.06433031159695311,
+     "rse_ratio": 1.0168216783157364,
+     "coverage": 0.943,
+     "coverage_mcse": 0.007331507348424336
+    },
+    {
+     "name": "backaction:reference",
+     "true_value": 0.55,
+     "crlb_rse": 0.17620645993969364,
+     "relative_bias": 0.0029796347997573295,
+     "relative_bias_mcse": 0.005656075885885318,
+     "empirical_rse": 0.17886082418152216,
+     "empirical_rrmse": 0.17879620089925405,
+     "rse_ratio": 1.0150639439821727,
+     "coverage": 0.941,
+     "coverage_mcse": 0.007451107300260817
+    }
+   ],
+   "scope": "MONTE_CARLO_MLE_MODEL_INTERNAL_ONE_POINT",
+   "notes": [
+    "model-internal Monte Carlo: data generated by the fitted model, one parameter point, one design, MLE only",
+    "crlb_rse bounds unbiased regular estimators; the MLE is biased at finite N, so rse_ratio < 1 does not contradict the bound and rse_ratio ~ 1 does not prove efficiency elsewhere"
+   ]
+  },
+  {
+   "design": {
+    "sequence": [
+     "fast",
+     "reference",
+     "precise",
+     "reference",
+     "fast",
+     "precise"
+    ],
+    "known_write": true
+   },
+   "free": [
+    "k01",
+    "k10",
+    "bias_flip",
+    "prep_error",
+    "bias_prior",
+    "error:fast",
+    "error:precise",
+    "error:reference",
+    "backaction:precise",
+    "backaction:reference"
+   ],
+   "sessions": 373950,
+   "replications": 1000,
+   "converged": 1000,
+   "failures": [],
+   "seed": 20261106,
+   "start_offset": 0.2,
+   "level": 0.95,
+   "parameters": [
+    {
+     "name": "k01",
+     "true_value": 0.07,
+     "crlb_rse": 0.03524435929856999,
+     "relative_bias": -0.00013611414344606918,
+     "relative_bias_mcse": 0.0010981332530040128,
+     "empirical_rse": 0.0347260225386262,
+     "empirical_rrmse": 0.03470892207735452,
+     "rse_ratio": 0.9852930576620009,
+     "coverage": 0.953,
+     "coverage_mcse": 0.00669260786241059
+    },
+    {
+     "name": "k10",
+     "true_value": 0.045,
+     "crlb_rse": 0.03716373497247317,
+     "relative_bias": 3.457016332719048e-05,
+     "relative_bias_mcse": 0.0011676148594551065,
+     "empirical_rse": 0.03692322385735525,
+     "empirical_rrmse": 0.0369047738193386,
+     "rse_ratio": 0.993528338438102,
+     "coverage": 0.948,
+     "coverage_mcse": 0.007021111023192843
+    },
+    {
+     "name": "bias_flip",
+     "true_value": 0.025,
+     "crlb_rse": 0.011219670529957504,
+     "relative_bias": 9.042162267478004e-05,
+     "relative_bias_mcse": 0.0003624199736367201,
+     "empirical_rse": 0.011460725862302129,
+     "empirical_rrmse": 0.01145535093846527,
+     "rse_ratio": 1.0214850633716013,
+     "coverage": 0.94,
+     "coverage_mcse": 0.007509993342207438
+    },
+    {
+     "name": "prep_error",
+     "true_value": 0.02,
+     "crlb_rse": 0.09999990445729724,
+     "relative_bias": -0.0007512729969686577,
+     "relative_bias_mcse": 0.00310391489809631,
+     "empirical_rse": 0.09815440741313775,
+     "empirical_rrmse": 0.09810819444901421,
+     "rse_ratio": 0.9815450119260106,
+     "coverage": 0.942,
+     "coverage_mcse": 0.007391616873188169
+    },
+    {
+     "name": "bias_prior",
+     "true_value": 0.5,
+     "crlb_rse": 0.0018446030462587755,
+     "relative_bias": 9.641328780540803e-05,
+     "relative_bias_mcse": 5.8477958189043005e-05,
+     "empirical_rse": 0.0018492354079347123,
+     "empirical_rrmse": 0.0018508234503676905,
+     "rse_ratio": 1.0025113054460861,
+     "coverage": 0.946,
+     "coverage_mcse": 0.0071473071852271785
+    },
+    {
+     "name": "error:fast",
+     "true_value": 0.12,
+     "crlb_rse": 0.0048226704384803885,
+     "relative_bias": -7.066611570060814e-05,
+     "relative_bias_mcse": 0.0001535701075273235,
+     "empirical_rse": 0.0048563132030331095,
+     "empirical_rrmse": 0.004854398814264848,
+     "rse_ratio": 1.006975961758507,
+     "coverage": 0.95,
+     "coverage_mcse": 0.006892024376045114
+    },
+    {
+     "name": "error:precise",
+     "true_value": 0.035,
+     "crlb_rse": 0.021470784562818833,
+     "relative_bias": -0.0008010520426851178,
+     "relative_bias_mcse": 0.0006743655305931027,
+     "empirical_rse": 0.02132531052182164,
+     "empirical_rrmse": 0.021329692551894763,
+     "rse_ratio": 0.9932245586754612,
+     "coverage": 0.95,
+     "coverage_mcse": 0.006892024376045114
+    },
+    {
+     "name": "error:reference",
+     "true_value": 0.025,
+     "crlb_rse": 0.01144928034533427,
+     "relative_bias": -0.000367173740646598,
+     "relative_bias_mcse": 0.0003568299550942415,
+     "empirical_rse": 0.011283953954734059,
+     "empirical_rrmse": 0.011284285790050082,
+     "rse_ratio": 0.9855601063461089,
+     "coverage": 0.948,
+     "coverage_mcse": 0.007021111023192843
+    },
+    {
+     "name": "backaction:precise",
+     "true_value": 3.5,
+     "crlb_rse": 0.0316425293266649,
+     "relative_bias": 0.0010988299380494076,
+     "relative_bias_mcse": 0.001001292198186793,
+     "empirical_rse": 0.031663639496269845,
+     "empirical_rrmse": 0.03166687397449176,
+     "rse_ratio": 1.0006671454543665,
+     "coverage": 0.953,
+     "coverage_mcse": 0.00669260786241059
+    },
+    {
+     "name": "backaction:reference",
+     "true_value": 0.55,
+     "crlb_rse": 0.08810346557116297,
+     "relative_bias": 0.0035900688319508278,
+     "relative_bias_mcse": 0.002771945148590614,
+     "empirical_rse": 0.08765660218600217,
+     "empirical_rrmse": 0.08768628639135308,
+     "rse_ratio": 0.9949279704008935,
+     "coverage": 0.95,
+     "coverage_mcse": 0.006892024376045114
+    }
+   ],
+   "scope": "MONTE_CARLO_MLE_MODEL_INTERNAL_ONE_POINT",
+   "notes": [
+    "model-internal Monte Carlo: data generated by the fitted model, one parameter point, one design, MLE only",
+    "crlb_rse bounds unbiased regular estimators; the MLE is biased at finite N, so rse_ratio < 1 does not contradict the bound and rse_ratio ~ 1 does not prove efficiency elsewhere"
+   ]
+  },
+  {
+   "design": {
+    "sequence": [
+     "fast",
+     "reference",
+     "precise",
+     "reference",
+     "fast",
+     "precise"
+    ],
+    "known_write": true
+   },
+   "free": [
+    "k01",
+    "k10",
+    "bias_flip",
+    "prep_error",
+    "bias_prior",
+    "error:fast",
+    "error:precise",
+    "error:reference",
+    "backaction:precise",
+    "backaction:reference"
+   ],
+   "sessions": 1495800,
+   "replications": 1000,
+   "converged": 1000,
+   "failures": [],
+   "seed": 20261107,
+   "start_offset": 0.2,
+   "level": 0.95,
+   "parameters": [
+    {
+     "name": "k01",
+     "true_value": 0.07,
+     "crlb_rse": 0.017622179649284996,
+     "relative_bias": -1.5146372352963548e-05,
+     "relative_bias_mcse": 0.0005455595786076792,
+     "empirical_rse": 0.017252108677219387,
+     "empirical_rrmse": 0.017243487117441572,
+     "rse_ratio": 0.9789997049496301,
+     "coverage": 0.95,
+     "coverage_mcse": 0.006892024376045114
+    },
+    {
+     "name": "k10",
+     "true_value": 0.045,
+     "crlb_rse": 0.018581867486236584,
+     "relative_bias": 5.6282268846698085e-05,
+     "relative_bias_mcse": 0.0005720304677926176,
+     "empirical_rse": 0.018089191692362623,
+     "empirical_rrmse": 0.018080232435473402,
+     "rse_ratio": 0.9734862066883815,
+     "coverage": 0.95,
+     "coverage_mcse": 0.006892024376045114
+    },
+    {
+     "name": "bias_flip",
+     "true_value": 0.025,
+     "crlb_rse": 0.005609835264978752,
+     "relative_bias": 8.961701407073086e-05,
+     "relative_bias_mcse": 0.00018124388054538843,
+     "empirical_rse": 0.005731434744909081,
+     "empirical_rrmse": 0.0057292692466078795,
+     "rse_ratio": 1.0216761231277955,
+     "coverage": 0.939,
+     "coverage_mcse": 0.007568289106528638
+    },
+    {
+     "name": "prep_error",
+     "true_value": 0.02,
+     "crlb_rse": 0.04999995222864862,
+     "relative_bias": -0.00017590138681987388,
+     "relative_bias_mcse": 0.0015610408929983284,
+     "empirical_rse": 0.049364447425379106,
+     "empirical_rrmse": 0.049340072580421786,
+     "rse_ratio": 0.9872898917910288,
+     "coverage": 0.949,
+     "coverage_mcse": 0.006956938982052382
+    },
+    {
+     "name": "bias_prior",
+     "true_value": 0.5,
+     "crlb_rse": 0.0009223015231293877,
+     "relative_bias": -1.0767206642614546e-05,
+     "relative_bias_mcse": 2.928390812756699e-05,
+     "empirical_rse": 0.0009260384847422833,
+     "empirical_rrmse": 0.0009256379749596741,
+     "rse_ratio": 1.0040517786419956,
+     "coverage": 0.947,
+     "coverage_mcse": 0.007084560677981384
+    },
+    {
+     "name": "error:fast",
+     "true_value": 0.12,
+     "crlb_rse": 0.0024113352192401943,
+     "relative_bias": 3.87693768454563e-05,
+     "relative_bias_mcse": 7.383264212717285e-05,
+     "empirical_rse": 0.0023347931478996547,
+     "empirical_rrmse": 0.0023339474820605294,
+     "rse_ratio": 0.9682573908721585,
+     "coverage": 0.956,
+     "coverage_mcse": 0.006485676526007139
+    },
+    {
+     "name": "error:precise",
+     "true_value": 0.035,
+     "crlb_rse": 0.010735392281409416,
+     "relative_bias": 0.0002176792917054003,
+     "relative_bias_mcse": 0.00034963420147912113,
+     "empirical_rse": 0.01105640424568235,
+     "empirical_rrmse": 0.011053018367990535,
+     "rse_ratio": 1.0299022109167666,
+     "coverage": 0.948,
+     "coverage_mcse": 0.007021111023192843
+    },
+    {
+     "name": "error:reference",
+     "true_value": 0.025,
+     "crlb_rse": 0.005724640172667135,
+     "relative_bias": 3.3150920519808835e-06,
+     "relative_bias_mcse": 0.00018391891496138407,
+     "empirical_rse": 0.005816026760647928,
+     "empirical_rrmse": 0.005813118965162123,
+     "rse_ratio": 1.0159637261424965,
+     "coverage": 0.939,
+     "coverage_mcse": 0.007568289106528638
+    },
+    {
+     "name": "backaction:precise",
+     "true_value": 3.5,
+     "crlb_rse": 0.01582126466333245,
+     "relative_bias": 0.000248896824158708,
+     "relative_bias_mcse": 0.0004879867930585575,
+     "empirical_rse": 0.015431497341462864,
+     "empirical_rrmse": 0.01542578778275042,
+     "rse_ratio": 0.9753643384290944,
+     "coverage": 0.953,
+     "coverage_mcse": 0.00669260786241059
+    },
+    {
+     "name": "backaction:reference",
+     "true_value": 0.55,
+     "crlb_rse": 0.044051732785581485,
+     "relative_bias": 0.0008776224871750751,
+     "relative_bias_mcse": 0.0013518968546090786,
+     "empirical_rse": 0.04275073222182189,
+     "empirical_rrmse": 0.04273836334754075,
+     "rse_ratio": 0.9704665292034681,
+     "coverage": 0.956,
+     "coverage_mcse": 0.006485676526007139
+    }
+   ],
+   "scope": "MONTE_CARLO_MLE_MODEL_INTERNAL_ONE_POINT",
+   "notes": [
+    "model-internal Monte Carlo: data generated by the fitted model, one parameter point, one design, MLE only",
+    "crlb_rse bounds unbiased regular estimators; the MLE is biased at finite N, so rse_ratio < 1 does not contradict the bound and rse_ratio ~ 1 does not prove efficiency elsewhere"
+   ]
+  }
+ ],
+ "endpoints": {
+  "primary": {
+   "prep_error_empirical_rse": 0.09815440741313775,
+   "P1_pass": true
+  },
+  "flags": [
+   {
+    "sessions": 23372,
+    "parameter": "backaction:precise",
+    "S2_bias": 0.028462204084212343
+   },
+   {
+    "sessions": 23372,
+    "parameter": "backaction:reference",
+    "S2_bias": 0.0732149127390371
+   }
+  ]
+ }
+}
