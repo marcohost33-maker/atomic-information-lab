@@ -5,6 +5,25 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Changed -- Cramér–Rao scope names its condition (cross-family R29, AIL-R29-01)
+- `SESSIONS_SCOPE` is now `CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY` (was
+  `CRLB_NECESSARY_LOWER_BOUND_ONLY`): the count is a lower bound for unbiased
+  regular estimators only; a biased estimator can have a smaller MSE.
+  `SESSIONS_SCOPE_TEXT` says so. Token change before the first release; JSON
+  keys unchanged. Finding N-25.
+- `Discrimination` gains `sessions_scope` (`CHERNOFF_SUFFICIENT_KNOWN_PAIR_ONLY`)
+  and `notes`, appended with defaults (positional construction unchanged):
+  the sufficient Chernoff count had no machine-readable scope in the Python
+  API. Finding N-26.
+
+### Added -- estimator calibration (R29 P1)
+- `estimation.py`: `sample_counts` (exact multinomial), `fit_mle` (Fisher
+  scoring, interior only, fail-closed), `estimator_calibration` (bias, RSE,
+  RMSE, Wald coverage with Monte-Carlo errors; failed fits counted).
+- Pre-registered protocol `docs/ESTIMATOR_PROTOCOL.md`, runner
+  `scripts/estimator_calibration.py`, results JSON; `scripts/chernoff_check.py`.
+  Findings N-27, N-28. Mutants M19–M23.
+
 ### Changed -- session counts say "lower bound" to every consumer (cross-family R28 Q2)
 - `SESSIONS_SCOPE_TEXT`: the scope of every Cramér–Rao session count in words
   (lower bound; necessary, not sufficient). `IdentifiabilityReport.notes`

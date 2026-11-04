@@ -51,4 +51,12 @@ bounds unbiased estimators).
 
 ## Deviations
 
-None so far.
+None. The run used exactly the setting above (R = 1000, seeds 20261104..20261107).
+
+## Outcome (added after the run)
+
+P1 met: `prep_error` RSE 0.098 at N = 373 950. S2 flags only at N = 23 372
+(`backaction:precise` +2.8 %, `backaction:reference` +7.3 %); S3 no flags;
+S1: 8 boundary failures at N = 23 372, none above. Statistics at that N are
+over the 992 converged fits (survivor selection, stated). Details: README,
+FINDINGS N-28, `docs/ESTIMATOR_CALIBRATION_RESULTS.json`.
