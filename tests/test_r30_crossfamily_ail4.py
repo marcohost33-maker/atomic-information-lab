@@ -305,3 +305,54 @@ def test_protocol_parser_reads_thin_space_numbers():
     text = (ROOT / "docs/ESTIMATOR_PROTOCOL.md").read_text(encoding="utf-8")
     assert re.search(r"23 372", text)  # control: the protocol writes numbers with spaces
     assert vp.protocol_setting(text)["sessions"][0] == 23372
+
+
+# ------------------------------------------------------------------ post-hoc analysis script
+def test_wilson_interval_reference_values():
+    """Wilson (1927) score interval, z = 1.96: textbook values for 5/10 and 0/10."""
+    ph = _load_script("estimator_posthoc")
+    lo, hi = ph.wilson(5, 10)
+    assert (round(lo, 4), round(hi, 4)) == (0.2366, 0.7634)
+    lo, hi = ph.wilson(0, 10)
+    assert lo == 0.0 and round(hi, 4) == 0.2775
+    with pytest.raises(ValueError):
+        ph.wilson(0, 0)
+
+
+def test_posthoc_reproduction_check_sees_one_changed_leaf():
+    ph = _load_script("estimator_posthoc")
+    reg = json.loads((ROOT / REGISTERED).read_text(encoding="utf-8"))
+    same = json.loads(json.dumps(reg))
+    same["python"], same["seconds"], same["provenance"] = "x", 0, {"git_head": "y"}  # volatile keys may differ
+    same["runs"][0]["parameters"][0]["extra_new_field"] = 1  # added fields are allowed
+    ok = ph.reproduction(reg, same)
+    assert ok["exact"] and ok["leaves_compared"] > 400
+    bad = json.loads(json.dumps(same))
+    bad["runs"][2]["parameters"][3]["empirical_rse"] += 1e-15
+    rep = ph.reproduction(reg, bad)
+    assert not rep["exact"] and rep["mismatches"] == ["$.runs[2].parameters[3].empirical_rse"]
+    del bad["runs"][3]
+    assert not ph.reproduction(reg, bad)["exact"]
+    notes = json.loads(json.dumps(same))
+    notes["runs"][0]["notes"].append("appended")  # appending a note is allowed ...
+    assert ph.reproduction(reg, notes)["exact"]
+    notes["runs"][0]["notes"][0] = "rewritten"  # ... rewriting a registered one is not
+    assert ph.reproduction(reg, notes)["mismatches"] == ["$.runs[0].notes[0]"]
+
+
+def test_committed_posthoc_is_derived_from_the_committed_r30_run():
+    """docs/ESTIMATOR_POSTHOC.json must follow from the two committed result files (no recomputation)."""
+    ph = _load_script("estimator_posthoc")
+    reg = json.loads((ROOT / REGISTERED).read_text(encoding="utf-8"))
+    run = json.loads((ROOT / "docs/ESTIMATOR_CALIBRATION_R30_RUN.json").read_text(encoding="utf-8"))
+    post = json.loads((ROOT / "docs/ESTIMATOR_POSTHOC.json").read_text(encoding="utf-8"))
+    rep = ph.reproduction(reg, run)
+    assert rep["exact"] and post["reproduction"] == rep
+    assert post["analysis"] == json.loads(json.dumps(ph.analyse(run)))
+    assert post["post_hoc"] is True and post["confirmatory"] is False
+    assert run["provenance"]["bound_files_dirty"] is False and len(run["provenance"]["git_head"]) == 40
+    per_n = {s["sessions"]: s for s in post["analysis"]["per_n"]}
+    # the README statement "from count/4 on within Monte-Carlo error" rests on these zeros
+    for n in (93_488, 373_950, 1_495_800):
+        assert per_n[n]["rse_ratio_ci_excludes_1"] == 0 and per_n[n]["coverage_flags_familywise"] == 0
+    assert per_n[23_372]["rse_ratio_ci_excludes_1"] == 4  # and the break at count/16 on this one
