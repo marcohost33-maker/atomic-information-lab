@@ -44,6 +44,7 @@ IDENT_FILE = "atomic_information_lab/identifiability.py"
 IDENT = "tests/test_identifiability.py"
 ESTIM_FILE = "atomic_information_lab/estimation.py"
 R29 = "tests/test_r29_estimator_scope.py"
+R30 = "tests/test_r30_crossfamily_ail4.py"
 
 # id: (file, old, new, what it breaks, {suite: expected verdict})
 MUTANTS = {
@@ -207,6 +208,34 @@ MUTANTS = {
         "if True:",
         "Fisher scoring stops after one step and calls the result converged",
         {R29: "relation"},
+    ),
+    "M24_crlb_rse_without_lower_bound_scope": (
+        ESTIM_FILE,
+        "                SESSIONS_SCOPE,\n                sd_mcse",
+        "                ESTIMATOR_SCOPE,\n                sd_mcse",
+        "the Cramer-Rao figure of the estimator report travels with the Monte-Carlo scope instead (AIL4-01)",
+        {R30: "relation"},
+    ),
+    "M25_all_replication_coverage_ignores_failures": (
+        ESTIM_FILE,
+        "(hits + replications - m) / replications",
+        "hits / m",
+        "the upper all-replication coverage bound silently becomes the survivor coverage (AIL4-03)",
+        {R30: "relation"},
+    ),
+    "M26_rse_mcse_assumes_normality": (
+        ESTIM_FILE,
+        "var_s2 = max(m4 - m2 * m2 * (m - 3) / (m - 1), 0.0) / m",
+        "var_s2 = 2 * (m2 * m / (m - 1)) ** 2 / (m - 1)",
+        "the Monte-Carlo error of the RSE ignores the fourth moment: too small for heavy tails",
+        {R30: "relation"},
+    ),
+    "M27_rse_mcse_on_two_fits": (
+        ESTIM_FILE,
+        'if m >= 4 else float("nan")',
+        'if m >= 2 else float("nan")',
+        "two or three converged fits make the whole calibration raise instead of reporting nan",
+        {R30: "guard"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")
