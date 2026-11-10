@@ -110,8 +110,10 @@ def test_docs_json_carries_the_scope_except_the_pinned_registered_result():
         missing = [p for p, o in _crlb_sites(data) if o.get("sessions_scope") != TOKEN]
         seen_sites += sum(1 for _ in _crlb_sites(data))
         if f.relative_to(ROOT).as_posix() == REGISTERED:
-            # the one allowed exception is tamper-evident: its bytes are pinned
-            assert hashlib.sha256(f.read_bytes()).hexdigest() == REGISTERED_SHA256
+            # the one allowed exception is tamper-evident: its bytes are pinned -- as committed (LF);
+            # a Windows checkout with core.autocrlf turns them into CRLF, which is no content change
+            canonical = f.read_bytes().replace(b"\r\n", b"\n")
+            assert hashlib.sha256(canonical).hexdigest() == REGISTERED_SHA256
             assert missing, "control: the registered file is the known gap; if it has the scope, drop the exception"
         else:
             assert missing == [], (f.name, missing[:3])
