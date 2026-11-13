@@ -226,11 +226,35 @@ run (separate commit); results in `docs/ESTIMATOR_CALIBRATION_RESULTS.json`
 | 1 495 800 (count · 4) | 1000 / 1000 | 0.049 (0.050) | +0.1 % / 0.043 (0.044) | 0.939–0.956 |
 
 Pre-registered primary endpoint met: at the Cramér–Rao count the MLE reaches
-the 10 % target on `prep_error` (0.098). From a quarter of the count on, the
-MLE is efficient here within Monte-Carlo error; at a sixteenth the asymptotics
-break (boundary failures, back-action biased upwards). Model-internal: the
-data come from the fitted model, one point, one design -- this calibrates the
-count as a planning figure *inside the model*, not on an instrument.
+the 10 % target on `prep_error` (0.098 ± 0.0023 Monte-Carlo SE, 5.2 SE below
+the 0.11 limit). Model-internal: the data come from the fitted model, one
+point, one design -- this calibrates the count as a planning figure *inside
+the model*, not on an instrument.
+
+Post hoc, not confirmatory ([docs/ESTIMATOR_POSTHOC.json](docs/ESTIMATOR_POSTHOC.json),
+`scripts/estimator_posthoc.py`; a new run first reproduces all 517 registered
+values exactly):
+
+* From a quarter of the count on, all 30 ratios empirical RSE / Cramér–Rao RSE
+  have a 95 % Monte-Carlo interval containing 1, and no coverage leaves the
+  family-wise band (Bonferroni over 40 cells) or the registered screen
+  [0.93, 0.97]. That -- and only that -- is meant by "efficient within
+  Monte-Carlo error" here; no equivalence margin was registered.
+* At a sixteenth the asymptotics break: 8 of 1000 fits fail at the boundary,
+  4 of 10 ratio intervals exclude 1, `backaction:reference` is biased by +7.3 %.
+  `prep_error` lies *below* the bound (ratio 0.951, interval 0.910–0.993) with
+  a bias of +2.9 % -- a biased estimator is not bound by Cramér–Rao.
+* Coverage at that N is over the 992 converged fits; over all 1000
+  replications it lies between 0.934 and 0.964 whatever the failed fits did
+  (`coverage_all_low/high`).
+
+The chain protocol → results is checked from git
+(`python scripts/verify_preregistration.py`, also in CI): the protocol text
+above "Deviations" and the runner are byte-identical from the registration
+commit `1097c2d` to the results commit, and the recorded setting matches the
+protocol. Re-running at `1097c2d` reproduces the registered file
+bit-identically (Python 3.13). Git proves content and order, not wall-clock
+time; commit dates are self-declared.
 
 See [docs/FINDINGS.md](docs/FINDINGS.md) for every audited claim and its
 verdict, including counter-examples.
@@ -334,6 +358,10 @@ From section 13.1 of the R1–R12 report (2026-10-18):
 |---|---|---|
 | R13 / P0 | Hard retention / risk limits `P(x_t ≠ x0) ≤ δ`, violation → STOP | **done** (`retention.py`, both readings, oracle-verified) |
 | R13 / P0 | Experimental identifiability (preparation error, bias, drift, back-action separable or NO-GO) | **done** (`identifiability.py`: NO-GO without an anchor and known writes, GO from four readings; witnesses exact, Fisher rank numerical) |
+| R29 / P1 | Does the MLE reach the Cramér–Rao counts? Pre-registered, chain checked from git, scope on every CRLB figure (cross-family R30) | **done, model-internal** (`estimation.py`; findings N-28–N-31) |
+| R29-02 | Separate outputs Bayes risk / MI(X0;Y) / P(X_T≠X0) / energy / steps | open |
+| R29-03 | Pareto list in `design_search` instead of a single D-optimal winner | open |
+| R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | open |
 | R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | open (continuous line, no exact oracle yet) |
 | R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |
 | R15 / P2 | Laboratory integration (STM/AFM raw data); Hexa-NTK / CodeFactory adapters | open, outside this repository |

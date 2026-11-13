@@ -5,6 +5,31 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Changed -- cross-family review of PR #4 @35aef81 (R30: AIL4-01..04, AIL-01..03)
+- `ParameterCalibration` gains `sessions_scope` (`CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY`):
+  `crlb_rse` reached Python consumers and the results JSON without the lower-bound
+  scope. Also `empirical_rse_mcse` (moment-based Monte-Carlo error of the RSE) and
+  `coverage_all_low` / `coverage_all_high` (coverage over all replications, failed
+  fits as miss / hit). All appended with defaults; positional construction unchanged.
+  Finding N-29, N-30.
+- `estimation.sd_mcse` (public). Regression fixed before release: with 2–3
+  converged fits the new error estimate would have aborted the report.
+- `scripts/estimator_calibration.py` writes `provenance` (git HEAD, dirty flag,
+  SHA-256 of protocol, runner and estimator) into every result.
+
+### Added -- pre-registration chain and post-hoc analysis (R30)
+- `scripts/verify_preregistration.py`: checks C1–C5 of the chain protocol →
+  results from git history; negative controls on fabricated histories. CI runs it
+  with full history (`fetch-depth: 0`). Finding N-31.
+- `scripts/estimator_posthoc.py` and `docs/ESTIMATOR_POSTHOC.json`: exact
+  reproduction of every registered field, then RSE-ratio intervals, Wilson
+  coverage intervals, all-replication coverage bounds and a family-wise
+  coverage band -- labelled post hoc, not confirmatory. Finding N-30.
+- Registered results reproduced bit-identically from the registration commit
+  `1097c2d` and from `35aef81` (Python 3.13). `docs/ESTIMATOR_CALIBRATION_RESULTS.json`
+  is left untouched (pinned by SHA-256 in the tests).
+- Mutants M24–M27.
+
 ### Changed -- Cramér–Rao scope names its condition (cross-family R29, AIL-R29-01)
 - `SESSIONS_SCOPE` is now `CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY` (was
   `CRLB_NECESSARY_LOWER_BOUND_ONLY`): the count is a lower bound for unbiased
