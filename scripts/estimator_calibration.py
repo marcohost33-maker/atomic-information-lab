@@ -34,6 +34,7 @@ BOUND_FILES = (
     "scripts/estimator_calibration.py",
     "src/atomic_information_lab/estimation.py",
     "src/atomic_information_lab/identifiability.py",
+    "src/atomic_information_lab/model.py",  # default hypothesis and actions: part of the calibration truth
 )
 
 

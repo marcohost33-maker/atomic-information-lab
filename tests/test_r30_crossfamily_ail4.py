@@ -358,3 +358,45 @@ def test_committed_posthoc_is_derived_from_the_committed_r30_run():
     for n in (93_488, 373_950, 1_495_800):
         assert per_n[n]["rse_ratio_ci_excludes_1"] == 0 and per_n[n]["coverage_flags_familywise"] == 0
     assert per_n[23_372]["rse_ratio_ci_excludes_1"] == 4  # and the break at count/16 on this one
+
+
+@pytest.mark.parametrize(("seed", "converged"), [(0, 0), (6, 1)])
+def test_coverage_bounds_need_no_spread_zero_or_one_fit(seed, converged):
+    """Codex review of b331be7: with 0 or 1 converged fit the bounds were nan, though counts suffice."""
+    d = Design(("reference", "fast", "reference"), True)
+    cal = Calibration(prep_error=0.05, bias_prior=0.3)
+    r = estimator_calibration(cal, d, ("error:fast", "prep_error"), 80, 2, seed=seed)
+    assert r.converged == converged  # positive control: this seed really hits the case
+    for p in r.parameters:
+        assert p.empirical_rse != p.empirical_rse  # spread measures stay nan ...
+        assert p.sessions_scope == TOKEN
+        assert 0.0 <= p.coverage_all_low <= p.coverage_all_high <= 1.0  # ... the count bounds do not
+        assert p.coverage_all_high - p.coverage_all_low == pytest.approx((2 - converged) / 2)
+        if converged == 0:
+            assert (p.coverage_all_low, p.coverage_all_high) == (0.0, 1.0)
+
+
+def _package_imports(module: str, seen=None) -> set[str]:
+    """Package modules ``module`` depends on (relative imports, transitively), as repo paths."""
+    import ast
+
+    seen = set() if seen is None else seen
+    path = f"src/atomic_information_lab/{module}.py"
+    if path in seen:
+        return seen
+    seen.add(path)
+    tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
+            _package_imports(node.module, seen)
+    return seen
+
+
+def test_provenance_binds_every_module_the_numbers_depend_on():
+    """Codex review of b331be7: model.py (default hypothesis and actions) was not bound."""
+    run = _load_script("estimator_calibration")
+    needed = _package_imports("estimation")
+    assert "src/atomic_information_lab/model.py" in needed  # positive control: the dependency walk sees it
+    assert needed <= set(run.BOUND_FILES), sorted(needed - set(run.BOUND_FILES))
+    prov = run.provenance()
+    assert set(prov["sha256"]) == set(run.BOUND_FILES)

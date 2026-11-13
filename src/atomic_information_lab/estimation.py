@@ -318,15 +318,21 @@ def estimator_calibration(
     for i, f in enumerate(free):
         tv = true[f]
         crlb = report.relative_crlb[i] / sqrt(sessions)
+        # the all-replication coverage bounds need only counts, not a spread: also for 0 or 1 converged fits
+        hits = sum(abs(fit.values[i] - tv) <= Z95 * fit.std_errors[i] for fit in fits)
+        all_low, all_high = hits / replications, (hits + replications - m) / replications
         if m < 2:
             nan = float("nan")
-            params.append(ParameterCalibration(f, tv, crlb, nan, nan, nan, nan, nan, nan, nan))
+            params.append(
+                ParameterCalibration(
+                    f, tv, crlb, nan, nan, nan, nan, nan, nan, nan, SESSIONS_SCOPE, nan, all_low, all_high
+                )
+            )
             continue
         xs = [fit.values[i] for fit in fits]
         mean = sum(xs) / m
         sd = sqrt(sum((x - mean) ** 2 for x in xs) / (m - 1))
         rmse = sqrt(sum((x - tv) ** 2 for x in xs) / m)
-        hits = sum(abs(fit.values[i] - tv) <= Z95 * fit.std_errors[i] for fit in fits)
         hit = hits / m
         params.append(
             ParameterCalibration(
@@ -342,8 +348,8 @@ def estimator_calibration(
                 sqrt(max(hit * (1 - hit), 1e-300) / m),
                 SESSIONS_SCOPE,
                 sd_mcse(xs) / abs(tv) if m >= 4 else float("nan"),  # 2..3 fits: no fourth moment
-                hits / replications,
-                (hits + replications - m) / replications,
+                all_low,
+                all_high,
             )
         )
     notes = (
