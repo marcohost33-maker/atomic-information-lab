@@ -109,7 +109,24 @@ Limits: Rothenberg's theorem is local and needs interior points (an error of
 0 is refused); a full rank is a numerical statement, a witness an exact one;
 only the default action catalogue and parameter point were searched.
 
-## 7. Not checked
+## 7. R31 separate outputs and Pareto list (2026-11-18, same-family; cross-family review pending)
+
+Roadmap R29-02 and R29-03, plus the gate of the cross-family round of 2026-11-15 ("Fisher rank,
+smallest eigenvalue and condition number as functions of the design"). All figures are
+model-internal: default synthetic model, one parameter point, no instrument.
+
+| ID | Finding | Verdict | Evidence |
+|---|---|---|---|
+| N-32 | The value `solve` returns mixes quantities that move in opposite directions. (a) At `h = 5` the forced planner gains more information about the written bit than the optimum (`I(X0; D)` 0.418 vs 0.387 bit) and is worse on value (0.1619 vs 0.1418), retention (`P(x_T ≠ x0)` 0.199 vs 0.151) and energy (5.03 vs 3.75). (b) At `h = 2` the value-optimal fixed sequence `reference, precise` yields 0.212 bit; `fast, reference` yields 0.290 bit with half the energy and a retention risk of 0.082 instead of 0.186, at a value 0.0027 worse. (c) N-2 measured: with `bias_flip = 0.5`, `I(X0; D) = 0` (≤ 1e-14) at `h = 1..3` while the Bayes risk falls. (d) The optimum at `h = 5` stops after three readings (0.718) or uses all five (0.282), never four. Mutual information is therefore reported next to the risk and is not the objective. | new | `tests/test_r31_policy_profile.py`: exact rational oracle (optimal, forced, greedy, all 39 fixed sequences up to length 3, two-model case with other weights), hidden-path enumeration; mutants M28–M30 |
+| N-33 | R29-03: a single D-optimal winner hides the trade-off. Length 5, anchored, known writes: 486 designs, 84 of full rank, 5 non-dominated. The D-optimal design `fast, precise, reference, reference, precise` has a Cramér–Rao bound of 1 517 144 sessions; `fast, fast, reference, precise, precise` has 1 364 627 (−10 %) at `log det` 0.10 instead of 4.16; the smallest bounded campaign energy belongs to `fast, reference, precise, reference, fast` (10.54 M vs 12.44 M energy units, −15 %). Length 4: 3 non-dominated of 12; the D-optimal design needs 49.5 M, `fast, reference, fast, precise` 41.1 M (−17 %). Every figure is a lower bound for unbiased regular estimators (`sessions_scope`); whether an estimator reaches it on these designs was not measured (N-28 measured one design only). | new | `tests/test_r31_design_pareto.py`: second front (sort and sweep), soundness and completeness, extreme designs are members; mutants M31–M32 |
+| N-34 | Full rank is not the whole story. The condition number `λmax/λmin` of the scale-free Fisher matrix spans 763–35 242 over the 12 full-rank designs of length 4 and 147–14 337 over the 84 of length 5. The D-optimal design is never the best conditioned one (4074 vs 763; 2385 vs 147). The design with the smallest bound at length 5 has condition 168. Reports and scores now carry rank, eigenvalues and condition number; the condition number is withheld (`None`) exactly when the rank is deficient or a parameter has no information. | new | eigenvalues vs power iteration and exact rational inverse; determinant vs exact rational elimination; mutant M33 |
+| N-35 | Own errors of this round, caught by measurement before release. (1) A test asserted that the best length-5 design is more than ten times better conditioned than every length-4 design; measured: 5.2 times (763 vs 147). The claim was dropped, the measured values are pinned. (2) `math.fsum` for the session energy was motivated by order-dependent rounding; measured: the built-in `sum` is already compensated on Python ≥ 3.12 and gave identical values for the default catalogue up to seven readings. The change stays as a precaution and is described as such. (3) Two further test expectations were wrong guesses (a design assumed GO was NO-GO; a prior entropy threshold) and were corrected to measured values, not the code. | negative result (process) | test history of this round |
+
+Limits: one parameter point and the default action catalogue; the Pareto comparison is exact on
+stored floats (designs whose criteria differ only by rounding are separated by that rounding); the
+profile is exact for a given policy and horizon ≤ 5 only; same-family work, no cross-family round yet.
+
+## 8. Not checked
 
 R6 figures, rounds R1–R7, the literature list of the earlier report, any
 statement about other projects, Python < 3.12.

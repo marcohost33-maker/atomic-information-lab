@@ -4,11 +4,18 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from .model import DEFAULT_ACTIONS, DEFAULT_HYPOTHESIS, TWO_HYPOTHESES, Action, Objective, Problem
+from .model import DEFAULT_ACTIONS, DEFAULT_HYPOTHESIS, STOP, TWO_HYPOTHESES, Action, Objective, Problem
 from .planner import best_open_loop, evaluate_policy, greedy_policy, nominal_policy, optimal_policy, solve
 from .retention import best_open_loop_retention, solve_retention
 
-__all__ = ["single_model_table", "two_model_table", "two_model_sensitivity", "retention_table"]
+__all__ = [
+    "single_model_table",
+    "two_model_table",
+    "two_model_sensitivity",
+    "retention_table",
+    "profile_table",
+    "design_pareto_table",
+]
 
 RETENTION_DELTAS = (0.0, 0.01, 0.05, 0.08, 0.1, 0.13, 1.0)
 
@@ -117,6 +124,103 @@ def retention_table(horizon: int = 4, deltas=RETENTION_DELTAS) -> list[dict]:
 IDENTIFIABILITY_DESIGN = ("fast", "reference", "precise", "reference", "fast", "precise")
 
 
+def profile_table(max_horizon: int = 5, objective: Objective = Objective()) -> list[dict]:
+    """Separate outputs per horizon (roadmap R29-02): Bayes risk, information, retention, energy, steps.
+
+    Three policies per horizon: the optimum with STOP, the planner forced to use
+    the whole horizon, and the best fixed sequence. The value column is what the
+    single-model table reports; the others show what that one number hides.
+    """
+    from .metrics import PROFILE_SCOPE, policy_profile
+
+    pr = Problem((DEFAULT_HYPOTHESIS,), objective=objective)
+    rows = []
+    for h in range(max_horizon + 1):
+        _, seq = best_open_loop(pr, h)
+
+        def fixed(_b, hist, _h, seq=seq):
+            return seq[len(hist)] if len(hist) < len(seq) else STOP
+
+        for label, pol in (
+            ("optimal_with_stop", optimal_policy(pr)),
+            ("forced_exactly_h", optimal_policy(pr, allow_stop=False)),
+            ("best_fixed_sequence", fixed),
+        ):
+            p = policy_profile(pr, pol, h)
+            rows.append(
+                {
+                    "h": h,
+                    "policy": label,
+                    "value": p.value,
+                    "bayes_risk": p.bayes_risk,
+                    "brier_initial": p.brier_initial,
+                    "brier_current": p.brier_current,
+                    "p_changed": p.p_changed,
+                    "information_initial_bits": p.information_initial_bits,
+                    "entropy_current_bits": p.entropy_current_bits,
+                    "expected_energy": p.expected_energy,
+                    "energy_cost": p.energy_cost,
+                    "expected_steps": p.expected_steps,
+                    "steps_distribution": list(p.steps_distribution),
+                    "scope": PROFILE_SCOPE,
+                }
+            )
+    return rows
+
+
+PARETO_LENGTH = 5
+
+
+def design_pareto_table(length: int = PARETO_LENGTH) -> dict:
+    """Non-dominated calibration designs of one length (roadmap R29-03), anchored parameter set."""
+    from .identifiability import (
+        PARETO_CRITERIA,
+        SESSIONS_SCOPE,
+        SESSIONS_SCOPE_TEXT,
+        Calibration,
+        design_pareto,
+        design_search,
+        parameter_names,
+    )
+
+    cal = Calibration(prep_error=0.02)
+    anchored = tuple(f for f in parameter_names(cal) if f != "backaction:fast")
+    scores = design_search(cal, anchored, length)
+    return {
+        "length": length,
+        "designs": len(scores),
+        "full_rank": sum(s.log_det is not None for s in scores),
+        "criteria": list(PARETO_CRITERIA),
+        "sessions_scope": SESSIONS_SCOPE,
+        "notes": [SESSIONS_SCOPE_TEXT],
+        "d_optimal": design_score_row(scores[0]),
+        "pareto": [design_score_row(s) for s in design_pareto(scores)],
+    }
+
+
+def design_score_row(score) -> dict:
+    """A ``DesignScore`` as JSON; the lower-bound words travel with every count (AIL-R28 Q2)."""
+    from .identifiability import SESSIONS_SCOPE_TEXT
+
+    row = {
+        "design": list(score.design.sequence),
+        "known_write": score.design.known_write,
+        "verdict": score.verdict,
+        "scope": score.scope,
+        "rank": score.rank,
+        "log_det": score.log_det,
+        "min_normalised_eigenvalue": score.min_normalised_eigenvalue,
+        "condition_number": score.condition_number,
+        "worst_sessions": score.worst_sessions,
+        "energy_per_session": score.energy_per_session,
+        "campaign_energy_crlb": score.campaign_energy_crlb,
+        "sessions_scope": score.sessions_scope,
+    }
+    if score.worst_sessions is not None:
+        row["notes"] = [SESSIONS_SCOPE_TEXT]
+    return row
+
+
 def identifiability_scenarios():
     """(label, calibration, design, free) of the roadmap R13/P0 identifiability table."""
     from .identifiability import Calibration, Design, parameter_names
@@ -166,6 +270,8 @@ def identifiability_table() -> list[dict]:
                 "zero_information": list(r.zero_information),
                 "worst_parameter_sessions_for_10pct": worst,
                 "sessions_for_10pct": dict(zip(r.free, r.sessions_for_target, strict=True)),
+                "min_normalised_eigenvalue": r.min_normalised_eigenvalue,
+                "condition_number": r.condition_number,
                 "sessions_scope": r.sessions_scope,
                 # the report's notes travel with the counts: they say in words that the counts are lower
                 # bounds (AIL-R28 Q2) and carry the boundary warning when a free parameter is 0

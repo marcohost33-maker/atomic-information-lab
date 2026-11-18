@@ -51,7 +51,16 @@ Chernoff information, with the number of sessions after which the equal-prior
 Bayes error of the likelihood-ratio test between the two KNOWN calibrations is
 guaranteed below ``alpha`` -- a sufficient count from an upper bound on the
 error, not a necessary one: fewer sessions may do; ``DISCRIMINATION_SCOPE``);
-``design_search`` ranks all fixed sequences of a given length.
+``design_search`` ranks all fixed sequences of a given length; ``design_pareto``
+keeps the designs that no other design beats on every criterion at once
+(roadmap R29-03), because the D-optimal winner is not the cheapest campaign.
+
+**Fisher spectrum** (cross-family 2026-11-15): every report carries the
+eigenvalues of the scale-free Fisher matrix and its condition number
+``lambda_max / lambda_min``. The rank says *whether* the parameters separate,
+the condition number says *how badly* the worst combination is determined
+relative to the best one; a full rank with a condition number of 1e6 is
+identifiable in principle and fragile in practice.
 
 Limits: synthetic classical model; the regularity conditions of Rothenberg's
 theorem fail on the boundary of the parameter space (an ``error`` of 0 makes
@@ -66,7 +75,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from fractions import Fraction
 from itertools import product
-from math import atan2, ceil, cos, exp, expm1, isfinite, log, sin, sqrt
+from math import atan2, ceil, cos, exp, expm1, fsum, isfinite, log, sin, sqrt
 
 from .model import DEFAULT_ACTIONS, DEFAULT_HYPOTHESIS, MAX_ACTIONS, Action, Hypothesis
 
@@ -93,6 +102,8 @@ __all__ = [
     "identifiability",
     "discrimination",
     "design_search",
+    "design_pareto",
+    "PARETO_CRITERIA",
 ]
 
 MAX_DESIGN_LENGTH = 10
@@ -558,6 +569,12 @@ class IdentifiabilityReport:
     target_rse: float
     energy_per_session: float
     notes: tuple[str, ...] = field(default=())
+    # Fisher spectrum, appended with defaults so positional construction stays compatible (R31).
+    # Eigenvalues of the scale-free matrix D^-1/2 F D^-1/2 over the parameters the design informs about,
+    # ascending; their sum is the number of such parameters (unit diagonal).
+    normalised_eigenvalues: tuple[float, ...] = ()
+    # lambda_max / lambda_min of that matrix; None when the rank is deficient (the ratio is then unbounded).
+    condition_number: float | None = None
 
 
 def identifiability(
@@ -592,6 +609,12 @@ def identifiability(
             m = len(live)
             ninv = [[sum(vec[a][k] * vec[b][k] / lam[k] for k in range(m)) for b in range(m)] for a in range(m)]
             inv = [[ninv[a][b] / (s[a] * s[b]) for b in range(m)] for a in range(m)]
+    spectrum = tuple(sorted(lam)) if live else ()
+    condition = None
+    if live and not zero and min_eig > RANK_TOL:
+        condition = max(lam) / min_eig
+        if not isfinite(condition):
+            raise ArithmeticError("non-finite condition number of the Fisher information")
     if zero:
         min_eig = 0.0
     null_dirs = []
@@ -622,7 +645,8 @@ def identifiability(
         notes.append(SESSIONS_SCOPE_TEXT)
     if any(v == 0.0 for v in values):
         notes.append("a free parameter sits on the boundary (value 0): Rothenberg's regularity conditions fail there")
-    energy = sum(calibration.action(a).energy for a in design.sequence)
+    # fsum is correctly rounded: the same readings cost exactly the same in every order (design_pareto criterion)
+    energy = fsum(calibration.action(a).energy for a in design.sequence)
     return IdentifiabilityReport(
         design,
         free,
@@ -642,6 +666,8 @@ def identifiability(
         float(target_rse),
         energy,
         tuple(notes),
+        spectrum,
+        condition,
     )
 
 
@@ -709,7 +735,7 @@ def discrimination(cal_a: Calibration, cal_b: Calibration, design: Design, alpha
     if c <= 1e-15:  # rounding floor of sum p^l q^(1-l) near one
         c = 0.0
     n = None if c == 0.0 else max(1, ceil(log(1 / (2 * alpha)) / c))
-    energy = sum(cal_a.action(a).energy for a in design.sequence)
+    energy = fsum(cal_a.action(a).energy for a in design.sequence)
     return Discrimination(design, _kl(p, q), _kl(q, p), c, lam, n, float(alpha), energy)
 
 
@@ -723,6 +749,13 @@ class DesignScore:
     worst_sessions: int | None  # max over parameters of the LOWER bound on sessions for target_rse
     sessions_scope: str  # SESSIONS_SCOPE: worst_sessions is a lower bound, not a guarantee
     energy_per_session: float
+    # appended with defaults so positional construction stays compatible (R31)
+    rank: int | None = None  # numerical rank of the Fisher information (IdentifiabilityReport.rank)
+    min_normalised_eigenvalue: float | None = None  # E-criterion on the scale-free matrix
+    condition_number: float | None = None  # lambda_max / lambda_min, None if rank deficient
+    # worst_sessions * energy_per_session: energy of the smallest campaign the Cramer-Rao bound allows an
+    # unbiased regular estimator; carries the scope of worst_sessions (sessions_scope), not a budget.
+    campaign_energy_crlb: float | None = None
 
 
 def design_search(
@@ -759,7 +792,19 @@ def design_search(
         scores.append(
             (
                 order,
-                DesignScore(rep.design, rep.verdict, rep.scope, ld, worst, rep.sessions_scope, rep.energy_per_session),
+                DesignScore(
+                    rep.design,
+                    rep.verdict,
+                    rep.scope,
+                    ld,
+                    worst,
+                    rep.sessions_scope,
+                    rep.energy_per_session,
+                    rep.rank,
+                    rep.min_normalised_eigenvalue,
+                    rep.condition_number,
+                    None if worst is None else worst * rep.energy_per_session,
+                ),
             )
         )
     rank = {"GO": 0, "AMBIGUOUS": 1, "NO-GO": 2}
@@ -775,3 +820,75 @@ def design_search(
         )
 
     return [s for _, s in sorted(scores, key=key)]
+
+
+# ---------------------------------------------------------------- Pareto list (roadmap R29-03)
+# Criteria of ``design_pareto``, all minimised. A design enters the comparison only if every criterion
+# is defined for it, i.e. its Fisher information has full rank (verdict GO or AMBIGUOUS).
+PARETO_CRITERIA = ("verdict_rank", "neg_log_det", "worst_sessions", "energy_per_session")
+_VERDICT_RANK = {"GO": 0, "AMBIGUOUS": 1}
+
+
+def _criteria(score: DesignScore) -> tuple[float, float, float, float] | None:
+    if score.verdict not in _VERDICT_RANK or score.log_det is None or score.worst_sessions is None:
+        return None
+    return (
+        float(_VERDICT_RANK[score.verdict]),
+        -score.log_det,
+        float(score.worst_sessions),
+        float(score.energy_per_session),
+    )
+
+
+def design_pareto(scores: Sequence[DesignScore]) -> list[DesignScore]:
+    """The designs of ``scores`` that no other design dominates, in the order given.
+
+    ``scores`` is the result of ``design_search`` (one parameter point, one set
+    of free parameters -- otherwise ``log_det`` is not comparable). Design A
+    dominates B when A is at least as good on every criterion of
+    ``PARETO_CRITERIA`` and strictly better on one:
+
+    * verdict (GO before AMBIGUOUS: a known global witness is never traded
+      against a smaller bound),
+    * ``log_det`` of the per-session Fisher information (D-criterion, larger
+      is better),
+    * ``worst_sessions`` (Cramer-Rao LOWER bound for the worst parameter,
+      ``sessions_scope``; fewer is better),
+    * ``energy_per_session`` (less is better).
+
+    Rank-deficient designs (NO-GO) have no bound and no determinant and are
+    left out. Designs with identical criteria do not dominate each other and
+    are all kept. Comparison is exact on the stored floats: two designs whose
+    criteria differ only by rounding are both kept or separated by that
+    rounding -- the list never drops a design that is better on some
+    criterion by more than rounding.
+
+    The design with the smallest ``campaign_energy_crlb`` (bound times energy
+    per session) is always in the list, as are the D-optimal design and the
+    design with the smallest bound; none of them need coincide. Every bound
+    in the list is a lower bound for unbiased regular estimators at this
+    parameter point (``SESSIONS_SCOPE``): the list ranks necessary effort,
+    it does not promise that any design achieves it.
+    """
+    if isinstance(scores, (str, bytes)) or not isinstance(scores, Sequence):
+        raise ValueError("scores must be a sequence of DesignScore objects")
+    scores = list(scores)
+    if not scores or any(type(s) is not DesignScore for s in scores):
+        raise ValueError("scores must be a non-empty sequence of DesignScore objects")
+    crit = [_criteria(s) for s in scores]
+    for c in crit:
+        if c is not None and not all(isfinite(x) for x in c):
+            raise ArithmeticError("non-finite design criterion")
+    cand = [i for i, c in enumerate(crit) if c is not None]
+    front = []
+    for i in cand:
+        ci = crit[i]
+        dominated = False
+        for j in cand:
+            cj = crit[j]
+            if j != i and cj != ci and all(a <= b for a, b in zip(cj, ci, strict=True)):
+                dominated = True
+                break
+        if not dominated:
+            front.append(scores[i])
+    return front

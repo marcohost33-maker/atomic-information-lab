@@ -9,10 +9,12 @@ from .estimation import estimator_calibration, fit_mle
 from .identifiability import (
     Calibration,
     Design,
+    design_pareto,
     design_search,
     discrimination,
     identifiability,
 )
+from .metrics import PolicyProfile, policy_profile
 from .model import (
     DEFAULT_ACTIONS,
     DEFAULT_HYPOTHESIS,
@@ -82,6 +84,9 @@ __all__ = [
     "identifiability",
     "discrimination",
     "design_search",
+    "design_pareto",
+    "PolicyProfile",
+    "policy_profile",
     "estimator_calibration",
     "fit_mle",
     "__version__",
