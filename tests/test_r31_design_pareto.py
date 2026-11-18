@@ -271,9 +271,11 @@ def test_condition_number_is_withheld_exactly_when_the_rank_is_deficient():
     assert nogo.normalised_eigenvalues[0] <= RANK_TOL < nogo.normalised_eigenvalues[-1]
     dead = identifiability(CAL, Design(("fast", "precise") * 2), ("k01", "prep_error"))
     assert dead.zero_information == ("prep_error",) and dead.condition_number is None
-    assert dead.min_normalised_eigenvalue == 0.0 and dead.normalised_eigenvalues == (1.0,)  # the informed part
+    # one informed parameter: F / (sqrt(F) * sqrt(F)) is 1 up to rounding (0.9999999999999999 on Windows)
+    assert dead.min_normalised_eigenvalue == 0.0 and dead.normalised_eigenvalues == pytest.approx((1.0,), abs=1e-12)
     one = identifiability(CAL, D4, ("error:fast",))
-    assert one.condition_number == 1.0 and one.normalised_eigenvalues == (1.0,)  # control: defined when full rank
+    assert one.condition_number == 1.0  # control: defined when full rank (max / min of one eigenvalue)
+    assert one.normalised_eigenvalues == pytest.approx((1.0,), abs=1e-12)
 
 
 def test_condition_number_as_a_function_of_the_design(scores4, scores5):
