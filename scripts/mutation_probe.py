@@ -45,6 +45,9 @@ IDENT = "tests/test_identifiability.py"
 ESTIM_FILE = "atomic_information_lab/estimation.py"
 R29 = "tests/test_r29_estimator_scope.py"
 R30 = "tests/test_r30_crossfamily_ail4.py"
+METRICS_FILE = "atomic_information_lab/metrics.py"
+PROFILE = "tests/test_r31_policy_profile.py"
+PARETO = "tests/test_r31_design_pareto.py"
 
 # id: (file, old, new, what it breaks, {suite: expected verdict})
 MUTANTS = {
@@ -236,6 +239,48 @@ MUTANTS = {
         'if m >= 2 else float("nan")',
         "two or three converged fits make the whole calibration raise instead of reporting nan",
         {R30: "guard"},
+    ),
+    "M28_information_about_the_current_bit": (
+        METRICS_FILE,
+        'acc["h0"] += mass * binary_entropy_bits(min(max(p0, 0.0), 1.0))',
+        'acc["h0"] += mass * binary_entropy_bits(min(max(pt, 0.0), 1.0))',
+        "the information figure uses the posterior of the current bit instead of the written bit",
+        {PROFILE: "relation"},
+    ),
+    "M29_retention_not_weighted_by_path": (
+        METRICS_FILE,
+        'acc["chg"] += mass * m["p_changed"]',
+        'acc["chg"] += m["p_changed"] / (2 ** len(hist))',
+        "P(x_T != x0) averages over leaves as if every outcome were equally likely",
+        {PROFILE: "relation"},
+    ),
+    "M30_energy_price_counts_steps": (
+        METRICS_FILE,
+        'energy_cost = o.energy_lambda * acc["energy"]',
+        "energy_cost = o.energy_lambda * sum(k * q for k, q in enumerate(stop_mass))",
+        "the energy price counts readings instead of their energy",
+        {PROFILE: "relation"},
+    ),
+    "M31_identical_designs_remove_each_other": (
+        IDENT_FILE,
+        "if j != i and cj != ci and all(a <= b for a, b in zip(cj, ci, strict=True)):",
+        "if j != i and all(a <= b for a, b in zip(cj, ci, strict=True)):",
+        "weak dominance: two designs with identical criteria both vanish from the Pareto list",
+        {PARETO: "relation"},
+    ),
+    "M32_pareto_ignores_energy": (
+        IDENT_FILE,
+        "        float(score.energy_per_session),\n    )",
+        "        0.0,\n    )",
+        "energy per session is not a criterion: cheaper designs with a larger bound are dropped",
+        {PARETO: "relation"},
+    ),
+    "M33_condition_number_inverted": (
+        IDENT_FILE,
+        "condition = max(lam) / min_eig",
+        "condition = min_eig / max(lam)",
+        "the condition number is reported as lambda_min / lambda_max",
+        {PARETO: "relation"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")

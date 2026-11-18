@@ -259,6 +259,84 @@ time; commit dates are self-declared.
 See [docs/FINDINGS.md](docs/FINDINGS.md) for every audited claim and its
 verdict, including counter-examples.
 
+### Separate outputs: risk, information, retention, energy, steps (R29-02)
+
+`solve` returns one number, expected terminal loss plus priced energy.
+`policy_profile` (`metrics.py`) evaluates one policy on the full observation
+tree and reports each quantity on its own: the Bayes risk and its three
+ingredients, the mutual information `I(X0; D_T)` between the written bit and
+everything recorded up to the stopping time (bits), `P(x_T ≠ x0)`, energy and
+the distribution of the number of readings. `value = bayes_risk +
+energy_cost` is checked on every call. The information figure is reported
+next to the risk; it is **not** the objective.
+
+`python -m atomic_information_lab reproduce --table profile` (default model):
+
+| h | policy | value | Bayes risk | I(X0; D) bit | P(x_T ≠ x0) | E[energy] | E[steps] |
+|--:|---|--:|--:|--:|--:|--:|--:|
+| 1 | forced | 0.259578 | 0.249978 | 0.0000 | 0.0306 | 0.800 | 1.000 |
+| 2 | optimal with STOP | 0.170217 | 0.127017 | 0.2120 | 0.1862 | 3.600 | 2.000 |
+| 3 | optimal with STOP | 0.156914 | 0.123314 | 0.3680 | 0.1271 | 2.800 | 3.000 |
+| 4 | optimal with STOP | 0.146247 | 0.109266 | 0.3855 | 0.1348 | 3.082 | 3.282 |
+| 5 | optimal with STOP | 0.141845 | 0.096847 | 0.3866 | 0.1511 | 3.750 | 3.563 |
+| 5 | forced | 0.161916 | 0.101540 | 0.4179 | 0.1994 | 5.031 | 5.000 |
+| 5 | best fixed sequence | 0.156914 | 0.123314 | 0.3680 | 0.1271 | 2.800 | 3.000 |
+
+What the single number hides (finding N-32, all model-internal):
+
+* **More information, worse outcome.** At `h = 5` the forced planner learns
+  more about the written bit than the optimum (0.418 vs 0.387 bit) and is
+  worse on value, on retention (0.199 vs 0.151) and on energy.
+* **The value-optimal sequence is not the most informative one.** At `h = 2`
+  the optimum `reference, precise` yields 0.212 bit; `fast, reference` yields
+  0.290 bit with half the energy (1.8 vs 3.6) and less than half the
+  retention risk (0.082 vs 0.186), at a value 0.0027 worse.
+* **Risk can fall with zero information** (N-2, now measured): with
+  `bias_flip = 0.5` every reading is noise about `x0`, `I(X0; D) = 0` at every
+  horizon, yet the risk falls because back-action makes the current bit more
+  predictable.
+* From `h = 3` to `h = 5` the optimum gains 0.019 bit and its retention risk
+  rises from 0.127 to 0.151: the later readings buy accuracy on the *current*
+  bit. It stops after three readings (probability 0.718) or uses all five
+  (0.282), never four.
+
+No mutual information is reported for the current bit `X_T`: its marginal
+changes with every reading, so "prior minus posterior entropy" would not be a
+mutual information of two fixed variables; `entropy_current_bits` is the
+remaining uncertainty.
+
+### Pareto list of calibration designs and the Fisher spectrum (R29-03)
+
+`design_search` ranks by verdict and then by `log det` of the Fisher
+information (D-optimality) and returns one winner. `design_pareto` keeps
+every design that no other design beats at once on verdict, `log det`, the
+Cramér–Rao bound for the worst parameter and energy per session. Each score
+also carries `campaign_energy_crlb` (bound × energy per session: the energy of
+the smallest campaign the bound allows an unbiased regular estimator -- it
+inherits `sessions_scope`, it is not a budget) and the Fisher spectrum: rank,
+smallest eigenvalue and condition number `λmax/λmin` of the scale-free matrix.
+
+`python -m atomic_information_lab designs --length 5 --pareto` (anchored
+parameters, known writes; 486 designs, 84 of full rank, 5 non-dominated):
+
+| design | log det | sessions, at least (CRLB) | energy / session | campaign energy (CRLB) | condition |
+|---|--:|--:|--:|--:|--:|
+| `fast, precise, reference, reference, precise` (D-optimal) | 4.163 | 1 517 144 | 8.2 | 12.44 M | 2385 |
+| `fast, precise, reference, reference, fast` | 4.138 | 1 671 322 | 6.4 | 10.70 M | 1603 |
+| `fast, reference, precise, precise, reference` | 3.663 | 1 382 893 | 8.2 | 11.34 M | 2099 |
+| `fast, reference, precise, reference, fast` | 3.197 | 1 647 073 | 6.4 | 10.54 M | 1493 |
+| `fast, fast, reference, precise, precise` | 0.102 | 1 364 627 | 8.4 | 11.46 M | 168 |
+
+The D-optimal design has neither the smallest bound (11 % above the best)
+nor the cheapest bounded campaign (18 % above the best), and it is 14 times
+worse conditioned than the last row (finding N-33). Among full-rank designs
+the condition number spans 763–35 242 (length 4, 12 designs) and 147–14 337
+(length 5, 84 designs): a full rank says the parameters separate, not how
+evenly (N-34). All counts are lower bounds for unbiased regular estimators
+at this parameter point; the list ranks necessary effort and does not say any
+design achieves it. Only the default catalogue and parameter point were
+searched.
+
 ## How it is verified
 
 * **Independent oracle** (`tests/_oracle.py`, no import of the package):
@@ -301,6 +379,13 @@ verdict, including counter-examples.
   imported. It records the limits too: M7 (swapped rates) survives the
   metamorphic suite and is killed by the simulation; M8 (decision rule one
   step short, values unchanged) is killed only by the policy cross-evaluation.
+* **Separate outputs and Pareto list** (R31): `policy_profile` against the exact
+  rational oracle for optimal, forced, greedy and every fixed sequence up to
+  length 3, and against explicit hidden-path enumeration; the Pareto list
+  against a second, differently written front with soundness and completeness
+  checks; Fisher eigenvalues, determinant and condition number against exact
+  rational linear algebra (`tests/test_r31_*.py`; mutants M28–M33, all killed
+  by assertions).
 * Mutation probes: each guard was removed in turn and the corresponding test
   was required to fail (15/15).
 
@@ -320,14 +405,21 @@ python -m atomic_information_lab solve --horizon 1 --forced
 python -m atomic_information_lab reproduce --table single
 python -m atomic_information_lab solve --horizon 4 --retention-limit 0.08 --retention-mode expected
 python -m atomic_information_lab identify --design fast,precise,reference,precise --known-write
+python -m atomic_information_lab solve --horizon 4 --profile
+python -m atomic_information_lab designs --length 5 --pareto
 ```
 
 ```python
 from atomic_information_lab import Problem, TWO_HYPOTHESES, solve, best_open_loop
 
 pr = Problem(TWO_HYPOTHESES, (0.5, 0.5))
-print(solve(pr, horizon=4))          # Decision(value=0.18405..., action='fast')
-print(best_open_loop(pr, 4))         # (0.18785..., ('fast', 'reference', 'fast'))
+print(solve(pr, horizon=4))  # Decision(value=0.18405..., action='fast')
+print(best_open_loop(pr, 4))  # (0.18785..., ('fast', 'reference', 'fast'))
+
+from atomic_information_lab import optimal_policy, policy_profile
+
+profile = policy_profile(pr, optimal_policy(pr), 4)
+print(profile.bayes_risk, profile.information_initial_bits, profile.p_changed, profile.expected_energy)
 ```
 
 Run the tests: `python -m pip install pytest && python -m pytest`.
@@ -359,8 +451,8 @@ From section 13.1 of the R1–R12 report (2026-10-18):
 | R13 / P0 | Hard retention / risk limits `P(x_t ≠ x0) ≤ δ`, violation → STOP | **done** (`retention.py`, both readings, oracle-verified) |
 | R13 / P0 | Experimental identifiability (preparation error, bias, drift, back-action separable or NO-GO) | **done** (`identifiability.py`: NO-GO without an anchor and known writes, GO from four readings; witnesses exact, Fisher rank numerical) |
 | R29 / P1 | Does the MLE reach the Cramér–Rao counts? Pre-registered, chain checked from git, scope on every CRLB figure (cross-family R30) | **done, model-internal** (`estimation.py`; findings N-28–N-31) |
-| R29-02 | Separate outputs Bayes risk / MI(X0;Y) / P(X_T≠X0) / energy / steps | open |
-| R29-03 | Pareto list in `design_search` instead of a single D-optimal winner | open |
+| R29-02 | Separate outputs Bayes risk / MI(X0;Y) / P(X_T≠X0) / energy / steps | **done** (`metrics.py`, oracle-verified; finding N-32; same-family, cross-family review pending) |
+| R29-03 | Pareto list in `design_search` instead of a single D-optimal winner | **done** (`design_pareto`, Fisher spectrum on every report; findings N-33, N-34; same-family, cross-family review pending) |
 | R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | open |
 | R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | open (continuous line, no exact oracle yet) |
 | R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |

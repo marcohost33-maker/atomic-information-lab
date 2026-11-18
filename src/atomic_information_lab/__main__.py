@@ -1,4 +1,4 @@
-"""Command line: python -m atomic_information_lab {reproduce,solve,identify} ..."""
+"""Command line: python -m atomic_information_lab {reproduce,solve,identify,designs} ..."""
 
 from __future__ import annotations
 
@@ -10,9 +10,12 @@ import sys
 
 from .identifiability import SESSIONS_SCOPE_TEXT
 from .model import DEFAULT_ACTIONS, Hypothesis, Objective, Problem
-from .planner import MAX_HORIZON, solve
+from .planner import MAX_HORIZON, optimal_policy, solve
 from .reproduce import (
+    design_pareto_table,
+    design_score_row,
     identifiability_table,
+    profile_table,
     retention_table,
     single_model_table,
     two_model_sensitivity,
@@ -38,7 +41,18 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = ap.add_subparsers(dest="command", required=True)
     rp = sub.add_parser("reproduce", help="print the reference tables as JSON")
     rp.add_argument(
-        "--table", choices=("single", "two-model", "sensitivity", "retention", "identifiability", "all"), default="all"
+        "--table",
+        choices=(
+            "single",
+            "two-model",
+            "sensitivity",
+            "retention",
+            "identifiability",
+            "profile",
+            "design-pareto",
+            "all",
+        ),
+        default="all",
     )
     rp.add_argument("--max-horizon", type=int, default=None)
     sp = sub.add_parser("solve", help="solve one single-model instance")
@@ -52,6 +66,12 @@ def _build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--forced", action="store_true", help="no STOP before the horizon")
     sp.add_argument(
         "--self-audit", action="store_true", help="report internal consistency checks (NOT an independent oracle)"
+    )
+    sp.add_argument(
+        "--profile",
+        action="store_true",
+        help="also report Bayes risk, information about the written bit (bits), P(x != x0), energy and steps "
+        "of the returned policy, each on its own (roadmap R29-02); model-internal figures",
     )
     sp.add_argument(
         "--retention-limit",
@@ -80,11 +100,40 @@ def _build_parser() -> argparse.ArgumentParser:
         default=0.1,
         help=f"target relative standard error (default 0.1); {SESSIONS_SCOPE_TEXT}",
     )
+    dp = sub.add_parser(
+        "designs",
+        help="score every fixed calibration design of one length; --pareto keeps the non-dominated ones "
+        "(roadmap R29-03)",
+    )
+    dp.add_argument("--length", type=int, required=True, help="number of readings per session")
+    dp.add_argument("--known-write", choices=("both", "yes", "no"), default="both")
+    dp.add_argument(
+        "--free",
+        default="anchored",
+        help="'all', 'anchored' (all but backaction:fast) or comma-separated parameter names",
+    )
+    dp.add_argument(
+        "--pareto",
+        action="store_true",
+        help="only designs that no other design beats on verdict, log det, Cramer-Rao bound and energy at once",
+    )
+    dp.add_argument("--top", type=int, default=10, help="number of designs printed (0 = all); ignored with --pareto")
+    dp.add_argument("--k01", type=_finite_float, default=0.07)
+    dp.add_argument("--k10", type=_finite_float, default=0.045)
+    dp.add_argument("--bias-flip", type=_finite_float, default=0.025)
+    dp.add_argument("--prep-error", type=_finite_float, default=0.02)
+    dp.add_argument("--bias-prior", type=_finite_float, default=0.5)
+    dp.add_argument(
+        "--target-rse",
+        type=_finite_float,
+        default=0.1,
+        help=f"target relative standard error (default 0.1); {SESSIONS_SCOPE_TEXT}",
+    )
     return ap
 
 
-def _identify(args) -> dict:
-    from .identifiability import Calibration, Design, identifiability, parameter_names
+def _calibration_and_free(args):
+    from .identifiability import Calibration, parameter_names
 
     cal = Calibration(Hypothesis(args.k01, args.k10, args.bias_flip), DEFAULT_ACTIONS, args.prep_error, args.bias_prior)
     names = parameter_names(cal)
@@ -94,6 +143,37 @@ def _identify(args) -> dict:
         free = tuple(n for n in names if n != "backaction:fast")
     else:
         free = tuple(f.strip() for f in args.free.split(","))
+    return cal, free
+
+
+def _designs(args) -> dict:
+    from .identifiability import PARETO_CRITERIA, SESSIONS_SCOPE, design_pareto, design_search
+
+    if args.top < 0:
+        raise ValueError("--top must be >= 0")
+    cal, free = _calibration_and_free(args)
+    modes = {"both": (False, True), "yes": (True,), "no": (False,)}[args.known_write]
+    scores = design_search(cal, free, args.length, modes, args.target_rse)
+    shown = design_pareto(scores) if args.pareto else (scores if args.top == 0 else scores[: args.top])
+    return {
+        "designs": {
+            "length": args.length,
+            "scored": len(scores),
+            "full_rank": sum(s.log_det is not None for s in scores),
+            "pareto": args.pareto,
+            "criteria": list(PARETO_CRITERIA) if args.pareto else None,
+            "target_rse": args.target_rse,
+            "sessions_scope": SESSIONS_SCOPE,
+            "notes": [SESSIONS_SCOPE_TEXT],
+            "items": [design_score_row(s) for s in shown],
+        }
+    }
+
+
+def _identify(args) -> dict:
+    from .identifiability import Design, identifiability
+
+    cal, free = _calibration_and_free(args)
     design = Design(tuple(a.strip() for a in args.design.split(",")), args.known_write)
     r = identifiability(cal, design, free, args.target_rse)
     return {"identifiability": dataclasses.asdict(r)}
@@ -118,8 +198,14 @@ def main(argv: list[str] | None = None) -> int:
                 out["retention"] = retention_table(4 if args.max_horizon is None else args.max_horizon)
             if args.table in ("identifiability", "all"):
                 out["identifiability"] = identifiability_table()
+            if args.table in ("profile", "all"):
+                out["profile"] = profile_table(single_h)
+            if args.table == "design-pareto":  # not part of "all": 486 designs take several seconds
+                out["design_pareto"] = design_pareto_table()
         elif args.command == "identify":
             out = _identify(args)
+        elif args.command == "designs":
+            out = _designs(args)
         else:
             pr = Problem(
                 (Hypothesis(args.k01, args.k10, args.bias_flip),),
@@ -127,8 +213,8 @@ def main(argv: list[str] | None = None) -> int:
                 objective=Objective(args.alpha, args.energy_lambda, args.retention_weight),
             )
             if args.retention_limit is not None:
-                if args.forced or args.self_audit:
-                    raise ValueError("--retention-limit cannot be combined with --forced or --self-audit")
+                if args.forced or args.self_audit or args.profile:
+                    raise ValueError("--retention-limit cannot be combined with --forced, --self-audit or --profile")
                 r = solve_retention(pr, args.retention_limit, args.horizon, args.retention_mode)
                 out = {"horizon": args.horizon, "retention": dataclasses.asdict(r)}
                 print(json.dumps(out, indent=2))
@@ -141,8 +227,13 @@ def main(argv: list[str] | None = None) -> int:
                 from .audit import self_audit
 
                 out["self_audit"] = self_audit(pr, args.horizon)
+            if args.profile:
+                from .metrics import policy_profile
+
+                prof = policy_profile(pr, optimal_policy(pr, allow_stop=not args.forced), args.horizon)
+                out["profile"] = dataclasses.asdict(prof)
     except (ValueError, ArithmeticError) as exc:
-        hint = "" if args.command == "identify" else f" (horizon range 0..{MAX_HORIZON})"
+        hint = "" if args.command in ("identify", "designs") else f" (horizon range 0..{MAX_HORIZON})"
         print(f"error: {exc}{hint}", file=sys.stderr)
         return 2
     print(json.dumps(out, indent=2))

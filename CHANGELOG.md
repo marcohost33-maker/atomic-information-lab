@@ -5,6 +5,32 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Added -- separate outputs and Pareto list (R31: roadmap R29-02, R29-03)
+- `metrics.policy_profile` / `PolicyProfile`: Bayes risk and its three
+  ingredients, mutual information `I(X0; D_T)` and `I(theta; D_T)` in bits,
+  remaining entropy of the current bit, `P(x_T != x0)`, energy, priced energy,
+  expected steps and the distribution of the number of readings -- each on its
+  own, exact within the model, with `scope = MODEL_INTERNAL_EXACT_FOR_THIS_POLICY`.
+  `value == bayes_risk + energy_cost` is checked on every call. Finding N-32.
+- `identifiability.design_pareto` and `PARETO_CRITERIA`: the designs no other
+  design beats on verdict, `log det`, Cramér–Rao bound and energy per session.
+  Finding N-33.
+- Fisher spectrum: `IdentifiabilityReport.normalised_eigenvalues` and
+  `.condition_number`; `DesignScore.rank`, `.min_normalised_eigenvalue`,
+  `.condition_number`, `.campaign_energy_crlb`. All appended with defaults;
+  positional construction unchanged. Finding N-34.
+- CLI: `solve --profile`, `designs --length N [--pareto] [--top K]`,
+  `reproduce --table profile` and `--table design-pareto` (the latter is not
+  part of `--table all`: 486 designs take several seconds).
+- Mutants M28–M33 (`scripts/mutation_probe.py`), all killed by assertions.
+
+### Changed
+- `energy_per_session` is summed with `math.fsum` (correctly rounded, hence
+  independent of the order of the readings). A precaution for the Pareto
+  comparison, not a repair: no value changed for the default catalogue.
+- `reproduce --table identifiability` rows gain `min_normalised_eigenvalue`
+  and `condition_number`.
+
 ### Changed -- cross-family review of PR #4 @35aef81 (R30: AIL4-01..04, AIL-01..03)
 - `ParameterCalibration` gains `sessions_scope` (`CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY`):
   `crlb_rse` reached Python consumers and the results JSON without the lower-bound
