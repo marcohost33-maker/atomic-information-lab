@@ -126,7 +126,28 @@ Limits: one parameter point and the default action catalogue; the Pareto compari
 stored floats (designs whose criteria differ only by rounding are separated by that rounding); the
 profile is exact for a given policy and horizon ≤ 5 only; same-family work, no cross-family round yet.
 
-## 8. Not checked
+## 8. R32 profile likelihood (2026-11-21, same-family; cross-family review pending)
+
+Roadmap R29 / P1 (Raue et al. 2009). Profiles on the expected data of N sessions; registered
+calibration design `fast, reference, precise, reference, fast, precise`, known writes, fast
+back-action as anchor, ten free parameters (`docs/PROFILE_LIKELIHOOD.json`). All figures are
+model-internal: default synthetic model, one parameter point, no instrument.
+
+| ID | Finding | Verdict | Evidence |
+|---|---|---|---|
+| N-36 | The Cramér–Rao count of the worst parameter survives the non-local check: for `prep_error` the likelihood-ratio count is 376 115 against 373 950 (+0.6 %). Over all ten parameters the ratio profile/CRLB lies in 0.999–1.035 except the two back-action factors: `backaction:precise` 1.228 (asymmetry 0.648) and `backaction:reference` 1.075 (0.863), both flatter above the truth. | new | profile against the hidden-path oracle with a global search; local limit against the Cramér–Rao curvature (cubic term measured); mutants M34, M38 |
+| N-37 | Post hoc, descriptive, not confirmatory: the two parameters with the largest profile/CRLB ratio are exactly the two with a positive MLE bias above 3 Monte-Carlo SE at count/16 in the registered run (`backaction:precise` +2.85 %, 6.2 SE; `backaction:reference` +7.32 %, 5.8 SE; RSE ratios 1.14 and 1.13), and both have asymmetry < 1 (flatter above ↔ biased upwards). The expected-data profile names the parameters that leave the local picture without a single simulation. One parameter point, one design; the size of the bias is not predicted. | new (descriptive) | `test_post_hoc_the_two_most_non_quadratic_parameters_are_the_two_biased_ones` reads both pinned JSON files |
+| N-38 | Practical identifiability (Raue: 95 % interval bounded on both sides) is reached within the scan from N = 6 (`bias_prior`) to N = 15 249 (`prep_error`). Below that, most intervals are open towards 0 (to the end of the scan at 2⁻¹⁰ of the value; e.g. a perfect preparation cannot be excluded), but `backaction:precise` is open *above* until N = 1 756 (scan up to 64 × its value). At both registered counts every interval is bounded and every profile is unimodal on both sides; intervals are asymmetric, e.g. [0.01606, 0.02390] around 0.02 (-19.7 % / +19.5 %, the Wald interval would be ±19.6 %), and `backaction:reference` at 23 372: [0.246, 1.063] around 0.55 (-55 % / +93 %). | new | `bounded_sessions` checked against intervals at N−1 and N; mutant M37 |
+| N-39 | Structural witnesses seen by the profile: flat (≤ 1e-31 against `FLAT_TOL` 1e-12) for the drift/back-action scale and the hidden preparation error; the label swap is a second exact zero (`π = 3e-32` at `k01 = 0.045`) and the side is flagged non-monotone. A connected interval alone would hide it. | CONFIRMED (consistent with N-16, N-17, N-19) | `tests/test_r32_profile_likelihood.py`; mutant M38 |
+| N-40 | Own errors of this round, caught by measurement before release. (1) Fisher scoring in linear coordinates crept along the drift/back-action valley (`k → 0`, `β → ∞` with `k·β` fixed): 7 of 34 points of the `prep_error` profile hit the iteration limit (e.g. 0.1 % too high at `prep_error = 0.26`, after about 1 900 evaluations); log coordinates converge in 6–61 evaluations. (2) A nuisance parameter on its domain bound (e.g. a read error at 0.5) stalled the step halving; now a projected active set. (3) Interval end points were bisected to 1e-4 of the parameter value instead of their distance from the truth; at 10⁹ sessions the interval came out 8 % too wide -- caught by the Wald half-width test. (4) The module name `profile_likelihood` was shadowed by the exported function of the same name; renamed to `likelihood_profile`. (5) One of 341 grid points of the reference table (`bias_flip = 0.381`, statistic 1.21, five orders of magnitude above every interval threshold) does not converge: the read errors run to 0 and a back-action factor to infinity. It is reported (`not_converged`) and enters no figure; a test pins that. | negative result (process) | test history of this round |
+
+Limits: expected data only (no spread over repeated experiments, Wilks' finite-N coverage not
+measured -- the next step would be likelihood-ratio intervals on the sampled data of the registered
+run); one parameter point and design; "bounded" means within the scan grid (64 × the truth or the
+domain bound), and counts read off the grid are conservative; the inner optimisation is local (two
+starts per point; one-nuisance cases checked against a global search). Same-family work.
+
+## 9. Not checked
 
 R6 figures, rounds R1–R7, the literature list of the earlier report, any
 statement about other projects, Python < 3.12.

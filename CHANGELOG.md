@@ -5,6 +5,24 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Added -- profile likelihood for practical identifiability (R32: roadmap R29 / P1)
+- `likelihood_profile` module (`profile_likelihood`, `profile_report`, `profile_statistic`,
+  `ParameterProfile`, `LikelihoodInterval`): profile likelihood after Raue et al. (2009) on the
+  *expected* data of N sessions (Asimov data set, Cowan et al. 2011). The per-session statistic
+  `2 min KL(p* || p)` is computed once; N sessions scale it by N. Reported per parameter: the
+  likelihood-ratio analogue of the Cramér–Rao count and their ratio (`profile_to_crlb`),
+  `asymmetry`, the smallest N at which the 95 % interval is bounded within the scan
+  (`bounded_sessions`), intervals at given N, flatness and outward monotonicity (second valleys).
+  Every figure carries `pl_scope = EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT`; the
+  Cramér–Rao figures keep `sessions_scope`. Findings N-36–N-40.
+- Inner optimisation: projected Fisher scoring in log coordinates with an active set for domain
+  bounds and Levenberg damping, two starts per point; a non-converged point is reported and never
+  closes an interval.
+- CLI `profile-likelihood --design ... [--param ...] [--sessions N,...]`;
+  `reproduce --table profile-likelihood` (not part of `--table all`: about six minutes) and its
+  output `docs/PROFILE_LIKELIHOOD.json`.
+- Mutants M34–M38 (`scripts/mutation_probe.py`).
+
 ### Added -- separate outputs and Pareto list (R31: roadmap R29-02, R29-03)
 - `metrics.policy_profile` / `PolicyProfile`: Bayes risk and its three
   ingredients, mutual information `I(X0; D_T)` and `I(theta; D_T)` in bits,

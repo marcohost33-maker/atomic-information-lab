@@ -337,6 +337,75 @@ at this parameter point; the list ranks necessary effort and does not say any
 design achieves it. Only the default catalogue and parameter point were
 searched.
 
+### Profile likelihood: practical identifiability beyond the local picture (R29 / P1)
+
+The Cramér–Rao counts read the curvature of the log-likelihood at one point.
+`likelihood_profile.py` follows Raue et al. (2009,
+doi:10.1093/bioinformatics/btp358): fix one parameter at `c`, re-optimise all
+others, and see how fast the fit degrades. It does so on the **expected** data
+of N sessions (the "Asimov" data set of Cowan et al. 2011,
+doi:10.1140/epjc/s10052-011-1554-0), where the likelihood-ratio statistic is
+exactly `N · π(c)` with the per-session `π(c) = 2 · min KL(p* ‖ p_c)`. So one
+profile answers every N:
+
+* **95 % interval** after N sessions: the connected set around the truth with
+  `π(c) ≤ 3.841 / N` (Wilks, one degree of freedom, pointwise);
+* **practically identifiable** in Raue's sense once that interval is bounded
+  on both sides -- `bounded_sessions` is the smallest such N within the scan
+  (64 × the truth or the domain bound);
+* **profile count**: the smallest N whose `Δ = 1` interval lies within
+  ±10 % -- equal to the Cramér–Rao count if the profile were exactly
+  quadratic. `profile/CRLB` measures how far the local picture is off,
+  `asymmetry = π(+10 %) / π(−10 %)` in which direction (< 1: flatter above).
+
+Registered calibration design (`fast, reference, precise, reference, fast,
+precise`, known writes, fast back-action as anchor), every parameter
+(`python -m atomic_information_lab reproduce --table profile-likelihood`,
+about six minutes; `docs/PROFILE_LIKELIHOOD.json`):
+
+| parameter | sessions, at least (CRLB) | profile count | profile/CRLB | asymmetry | 95 % interval bounded from N = |
+|---|--:|--:|--:|--:|--:|
+| `k01` | 46 451 | 46 658 | 1.004 | 0.991 | 1 710 |
+| `k10` | 51 648 | 52 443 | 1.015 | 0.970 | 1 710 |
+| `bias_flip` | 4 708 | 4 867 | 1.034 | 0.934 | 120 |
+| `prep_error` | 373 950 | 376 115 | 1.006 | 1.012 | 15 249 |
+| `bias_prior` | 128 | 128 | 0.999 | 1.000 | 6 |
+| `error:fast` | 870 | 891 | 1.024 | 0.954 | 32 |
+| `error:precise` | 17 239 | 17 324 | 1.005 | 0.991 | 654 |
+| `error:reference` | 4 902 | 5 075 | 1.035 | 0.932 | 127 |
+| `backaction:precise` | 37 442 | 45 971 | 1.228 | 0.648 | 1 756 |
+| `backaction:reference` | 290 269 | 312 114 | 1.075 | 0.863 | 4 257 |
+
+What it shows (findings N-36–N-39, all model-internal):
+
+* **The worst-case planning figure holds beyond the local picture.** For
+  `prep_error` the profile count is 0.6 % above the Cramér–Rao count, so the
+  registered 373 950 sessions are not an artefact of the quadratic
+  approximation. All parameters except the two back-action factors stay
+  within 3.5 %.
+* **The back-action factors are not quadratic.** For `backaction:precise`
+  the local picture understates the effort by 23 %, for
+  `backaction:reference` by 7.5 %; both profiles are flatter above the truth.
+  Post hoc and descriptive: these are exactly the two parameters whose MLE was
+  biased upwards (> 3 Monte-Carlo SE) at count/16 in the registered run
+  (+2.9 %, +7.3 %, `docs/ESTIMATOR_CALIBRATION_RESULTS.json`). The profile names
+  them from the expected data alone, without a simulation.
+* **Practical identifiability sets in early but unevenly.** With fewer than 15 249 sessions the 95 % interval of `prep_error` runs to the lower end of the scan (2⁻¹⁰ of the true value) -- the data cannot exclude a perfect preparation; the drift rates need 1 710 and `backaction:reference` 4 257 sessions on that side, while `backaction:precise` needs 1 756 sessions before its interval closes *above* (within 64 × its value). `bias_prior` is bounded from 6 sessions.
+  At the registered counts (23 372 and 373 950) every 95 % interval is
+  bounded and every profile is unimodal, e.g. `prep_error` at 373 950:
+  [0.01606, 0.02390] around 0.02 (-19.7 % / +19.5 %, the Wald interval would be ±19.6 %), and `backaction:reference` at 23 372: [0.246, 1.063] around 0.55 (-55 % / +93 %).
+* **Structural controls.** Where `identifiability` knows an exact witness,
+  the profile is flat (≤ 1e-31; drift/back-action scale, hidden preparation
+  error) or falls back to a second zero (label swap, `π = 3e-32` at the
+  swapped point) and is flagged as non-monotone.
+
+Limits (`pl_scope`): expected data only -- the spread of intervals over
+repeated experiments and the finite-N coverage of Wilks' threshold are not
+measured; one parameter point and design; "bounded" means within the scan
+grid, and counts read off the grid are conservative; the inner optimisation is
+local (two starts per point, checked against a global search of the oracle
+for one nuisance parameter).
+
 ## How it is verified
 
 * **Independent oracle** (`tests/_oracle.py`, no import of the package):
@@ -386,6 +455,14 @@ searched.
   checks; Fisher eigenvalues, determinant and condition number against exact
   rational linear algebra (`tests/test_r31_*.py`; mutants M28–M33, all killed
   by assertions).
+* **Profile likelihood** (R32, `tests/test_r32_profile_likelihood.py`): the
+  profile statistic against the hidden-path oracle with its own global search
+  (log grid and golden section) over the nuisance parameter; the local limit
+  against the Cramér–Rao curvature with the cubic term measured; flat profiles
+  at every exact witness and the label swap as a second zero; the definitions
+  of `bounded_sessions`, nested intervals and the Wilks threshold exactly;
+  non-converged points never close an interval; the consumer contract of the
+  CLI; mutants M34–M38.
 * Mutation probes: each guard was removed in turn and the corresponding test
   was required to fail (15/15).
 
@@ -407,6 +484,8 @@ python -m atomic_information_lab solve --horizon 4 --retention-limit 0.08 --rete
 python -m atomic_information_lab identify --design fast,precise,reference,precise --known-write
 python -m atomic_information_lab solve --horizon 4 --profile
 python -m atomic_information_lab designs --length 5 --pareto
+python -m atomic_information_lab profile-likelihood --design fast,reference,precise --known-write \
+    --free k01,backaction:precise --sessions 1000,100000
 ```
 
 ```python
@@ -453,7 +532,7 @@ From section 13.1 of the R1–R12 report (2026-10-18):
 | R29 / P1 | Does the MLE reach the Cramér–Rao counts? Pre-registered, chain checked from git, scope on every CRLB figure (cross-family R30) | **done, model-internal** (`estimation.py`; findings N-28–N-31) |
 | R29-02 | Separate outputs Bayes risk / MI(X0;Y) / P(X_T≠X0) / energy / steps | **done** (`metrics.py`, oracle-verified; finding N-32; same-family, cross-family review pending) |
 | R29-03 | Pareto list in `design_search` instead of a single D-optimal winner | **done** (`design_pareto`, Fisher spectrum on every report; findings N-33, N-34; same-family, cross-family review pending) |
-| R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | open |
+| R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | **done, expected data** (`likelihood_profile.py`; findings N-36–N-40; same-family, cross-family review pending; coverage over repeated experiments open) |
 | R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | open (continuous line, no exact oracle yet) |
 | R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |
 | R15 / P2 | Laboratory integration (STM/AFM raw data); Hexa-NTK / CodeFactory adapters | open, outside this repository |
