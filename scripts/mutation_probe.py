@@ -48,6 +48,8 @@ R30 = "tests/test_r30_crossfamily_ail4.py"
 METRICS_FILE = "atomic_information_lab/metrics.py"
 PROFILE = "tests/test_r31_policy_profile.py"
 PARETO = "tests/test_r31_design_pareto.py"
+PL_FILE = "atomic_information_lab/likelihood_profile.py"
+PL = "tests/test_r32_profile_likelihood.py"
 
 # id: (file, old, new, what it breaks, {suite: expected verdict})
 MUTANTS = {
@@ -281,6 +283,41 @@ MUTANTS = {
         "condition = min_eig / max(lam)",
         "the condition number is reported as lambda_min / lambda_max",
         {PARETO: "relation"},
+    ),
+    "M34_profile_is_a_slice": (
+        PL_FILE,
+        "    nuis = tuple(f for f in free if f != name)",
+        "    nuis = ()",
+        "the other parameters are held at the truth instead of re-optimised (a slice, not a profile)",
+        {PL: "relation"},
+    ),
+    "M35_wilks_threshold_is_z": (
+        PL_FILE,
+        "    return z * z",
+        "    return z",
+        "the interval threshold uses the normal quantile instead of chi-square(1)",
+        {PL: "relation"},
+    ),
+    "M36_unconverged_point_bounds": (
+        PL_FILE,
+        "            if pt.converged and pt.statistic > threshold:",
+        "            if pt.statistic > threshold:",
+        "a non-converged (over-estimated) profile value may close an interval",
+        {PL: "relation"},
+    ),
+    "M37_bounded_from_the_steeper_side": (
+        PL_FILE,
+        "    pr = min(low_plateau, high_plateau)",
+        "    pr = max(low_plateau, high_plateau)",
+        "bounded_sessions follows the steeper side, so one side is still open at that N",
+        {PL: "relation"},
+    ),
+    "M38_second_valley_ignored": (
+        PL_FILE,
+        "    return dip",
+        "    return None",
+        "a profile that falls back to a second zero (global ambiguity) is reported as monotone",
+        {PL: "relation"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")
