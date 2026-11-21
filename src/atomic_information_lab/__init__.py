@@ -14,6 +14,7 @@ from .identifiability import (
     discrimination,
     identifiability,
 )
+from .likelihood_profile import ParameterProfile, profile_likelihood, profile_report
 from .metrics import PolicyProfile, policy_profile
 from .model import (
     DEFAULT_ACTIONS,
@@ -89,5 +90,8 @@ __all__ = [
     "policy_profile",
     "estimator_calibration",
     "fit_mle",
+    "ParameterProfile",
+    "profile_likelihood",
+    "profile_report",
     "__version__",
 ]

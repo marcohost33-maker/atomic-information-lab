@@ -221,6 +221,73 @@ def design_score_row(score) -> dict:
     return row
 
 
+PL_SESSIONS = (373_950, 23_372)  # the registered Cramer-Rao count and count/16 (docs/ESTIMATOR_PROTOCOL.md)
+
+
+def profile_row(r) -> dict:
+    """A ``ParameterProfile`` as JSON; both scopes and their words travel with the counts (AIL-R28 Q2)."""
+    from .identifiability import SESSIONS_SCOPE_TEXT
+    from .likelihood_profile import PL_SCOPE_TEXT
+
+    return {
+        "name": r.name,
+        "true_value": r.true_value,
+        "target_rse": r.target_rse,
+        "crlb_rse": r.crlb_rse,
+        "crlb_sessions": r.crlb_sessions,
+        "profile_sessions": r.profile_sessions,
+        "profile_to_crlb": r.profile_to_crlb,
+        "asymmetry": r.asymmetry,
+        "low_plateau": r.low_plateau,
+        "high_plateau": r.high_plateau,
+        "bounded_sessions": r.bounded_sessions,
+        "flat": r.flat,
+        "low_monotone": r.low_monotone,
+        "high_monotone": r.high_monotone,
+        "low_dip": r.low_dip,
+        "high_dip": r.high_dip,
+        "scan": [r.scan_low, r.scan_high],
+        "not_converged": r.not_converged,
+        "intervals": [
+            {
+                "sessions": iv.sessions,
+                "level": iv.level,
+                "low": iv.low,
+                "high": iv.high,
+                "bounded": iv.bounded,
+                "pl_scope": iv.pl_scope,
+                "sessions_scope": r.sessions_scope,
+            }
+            for iv in r.intervals
+        ],
+        "points": [[p.value, p.statistic, p.converged] for p in r.points],
+        "pl_scope": r.pl_scope,
+        "sessions_scope": r.sessions_scope,
+        "notes": [PL_SCOPE_TEXT, SESSIONS_SCOPE_TEXT],
+    }
+
+
+def profile_likelihood_table(sessions=PL_SESSIONS) -> dict:
+    """Roadmap R29 / P1: profile likelihood of every parameter of the registered calibration design."""
+    from .identifiability import SESSIONS_SCOPE, Calibration, Design, parameter_names
+    from .likelihood_profile import PL_SCOPE, PL_SCOPE_TEXT, profile_report
+
+    cal = Calibration(prep_error=0.02)
+    anchored = tuple(f for f in parameter_names(cal) if f != "backaction:fast")
+    design = Design(("fast", "reference", "precise", "reference", "fast", "precise"), True)
+    rows = profile_report(cal, design, anchored, None, 0.1, tuple(sessions))
+    return {
+        "design": list(design.sequence),
+        "known_write": design.known_write,
+        "free": list(anchored),
+        "sessions": list(sessions),
+        "parameters": [profile_row(r) for r in rows],
+        "pl_scope": PL_SCOPE,
+        "sessions_scope": SESSIONS_SCOPE,
+        "notes": [PL_SCOPE_TEXT],
+    }
+
+
 def identifiability_scenarios():
     """(label, calibration, design, free) of the roadmap R13/P0 identifiability table."""
     from .identifiability import Calibration, Design, parameter_names

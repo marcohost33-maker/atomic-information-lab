@@ -1,4 +1,4 @@
-"""Command line: python -m atomic_information_lab {reproduce,solve,identify,designs} ..."""
+"""Command line: python -m atomic_information_lab {reproduce,solve,identify,designs,profile-likelihood} ..."""
 
 from __future__ import annotations
 
@@ -8,13 +8,15 @@ import json
 import math
 import sys
 
-from .identifiability import SESSIONS_SCOPE_TEXT
+from .identifiability import SESSIONS_SCOPE, SESSIONS_SCOPE_TEXT
 from .model import DEFAULT_ACTIONS, Hypothesis, Objective, Problem
 from .planner import MAX_HORIZON, optimal_policy, solve
 from .reproduce import (
     design_pareto_table,
     design_score_row,
     identifiability_table,
+    profile_likelihood_table,
+    profile_row,
     profile_table,
     retention_table,
     single_model_table,
@@ -50,6 +52,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "identifiability",
             "profile",
             "design-pareto",
+            "profile-likelihood",
             "all",
         ),
         default="all",
@@ -129,7 +132,61 @@ def _build_parser() -> argparse.ArgumentParser:
         default=0.1,
         help=f"target relative standard error (default 0.1); {SESSIONS_SCOPE_TEXT}",
     )
+    lp = sub.add_parser(
+        "profile-likelihood",
+        help="profile likelihood on the expected data of N sessions: practical identifiability beyond the "
+        "local Cramer-Rao picture (roadmap R29 / P1, Raue et al. 2009)",
+    )
+    lp.add_argument("--design", required=True, help="comma-separated action names, e.g. fast,reference,precise")
+    lp.add_argument("--known-write", action="store_true", help="the written bit x0 is recorded per session")
+    lp.add_argument(
+        "--free",
+        default="anchored",
+        help="'all', 'anchored' (all but backaction:fast) or comma-separated parameter names",
+    )
+    lp.add_argument(
+        "--param",
+        default=None,
+        help="comma-separated free parameters to profile (default: all free ones; about 10-80 s each)",
+    )
+    lp.add_argument(
+        "--sessions",
+        default="",
+        help="comma-separated session counts N at which the likelihood-ratio interval is reported",
+    )
+    lp.add_argument("--level", type=_finite_float, default=0.95, help="confidence level of the intervals")
+    lp.add_argument("--k01", type=_finite_float, default=0.07)
+    lp.add_argument("--k10", type=_finite_float, default=0.045)
+    lp.add_argument("--bias-flip", type=_finite_float, default=0.025)
+    lp.add_argument("--prep-error", type=_finite_float, default=0.02)
+    lp.add_argument("--bias-prior", type=_finite_float, default=0.5)
+    lp.add_argument(
+        "--target-rse",
+        type=_finite_float,
+        default=0.1,
+        help=f"target relative standard error (default 0.1); {SESSIONS_SCOPE_TEXT}",
+    )
     return ap
+
+
+def _profile_likelihood(args) -> dict:
+    from .identifiability import Design
+    from .likelihood_profile import PL_SCOPE, PL_SCOPE_TEXT, profile_report
+
+    cal, free = _calibration_and_free(args)
+    design = Design(tuple(a.strip() for a in args.design.split(",")), args.known_write)
+    names = None if args.param is None else tuple(n.strip() for n in args.param.split(","))
+    try:
+        sessions = tuple(int(n) for n in args.sessions.split(",") if n.strip())
+    except ValueError as exc:
+        raise ValueError("--sessions must be comma-separated integers") from exc
+    rows = profile_report(cal, design, free, names, args.target_rse, sessions, args.level)
+    return {
+        "profile_likelihood": [profile_row(r) for r in rows],
+        "pl_scope": PL_SCOPE,
+        "sessions_scope": SESSIONS_SCOPE,
+        "notes": [PL_SCOPE_TEXT, SESSIONS_SCOPE_TEXT],
+    }
 
 
 def _calibration_and_free(args):
@@ -202,10 +259,14 @@ def main(argv: list[str] | None = None) -> int:
                 out["profile"] = profile_table(single_h)
             if args.table == "design-pareto":  # not part of "all": 486 designs take several seconds
                 out["design_pareto"] = design_pareto_table()
+            if args.table == "profile-likelihood":  # not part of "all": ten profiles take several minutes
+                out["profile_likelihood"] = profile_likelihood_table()
         elif args.command == "identify":
             out = _identify(args)
         elif args.command == "designs":
             out = _designs(args)
+        elif args.command == "profile-likelihood":
+            out = _profile_likelihood(args)
         else:
             pr = Problem(
                 (Hypothesis(args.k01, args.k10, args.bias_flip),),
@@ -233,7 +294,8 @@ def main(argv: list[str] | None = None) -> int:
                 prof = policy_profile(pr, optimal_policy(pr, allow_stop=not args.forced), args.horizon)
                 out["profile"] = dataclasses.asdict(prof)
     except (ValueError, ArithmeticError) as exc:
-        hint = "" if args.command in ("identify", "designs") else f" (horizon range 0..{MAX_HORIZON})"
+        calibration_commands = ("identify", "designs", "profile-likelihood")
+        hint = "" if args.command in calibration_commands else f" (horizon range 0..{MAX_HORIZON})"
         print(f"error: {exc}{hint}", file=sys.stderr)
         return 2
     print(json.dumps(out, indent=2))
