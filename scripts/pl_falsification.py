@@ -71,7 +71,7 @@ def _lr_one(args):
     est = dict(zip(free, full.values, strict=True))
     row["estimates"] = list(full.values)
     row["std_errors"] = list(full.std_errors)
-    lam, above, restr_fail = [], [], []
+    lam, above, restr_fail, restr_ok = [], [], [], []
     tv = truth.parameters()
     for name in free:
         others = tuple(f for f in free if f != name)
@@ -79,12 +79,20 @@ def _lr_one(args):
         r = fit_mle(s, design, others, counts)
         if not r.converged:
             restr_fail.append(name)
+            # R33 correction (cross-family review of PR #7): an unfinished restricted fit under-estimates the
+            # restricted maximum, so its Lambda is too large and could turn a hit into a miss. Retry once from
+            # the true values; if that does not converge either, the cell is UNRESOLVED, not a hit or a miss.
+            r2 = fit_mle(truth, design, others, counts)
+            if r2.converged and (not r.converged or r2.log_likelihood > r.log_likelihood):
+                r = r2
+        restr_ok.append(r.converged)
         d = 2 * (full.log_likelihood - r.log_likelihood)
         above.append(d < 0)
         lam.append(max(d, 0.0))
     row["lambda"] = lam
     row["restricted_above_full"] = above
-    row["restricted_not_converged"] = restr_fail
+    row["restricted_not_converged"] = restr_fail  # first attempt (as in the registered run)
+    row["restricted_converged"] = restr_ok  # after the retry
     return row
 
 
@@ -114,10 +122,13 @@ def part_a(reps: int, workers: int) -> dict:
             sd = math.sqrt(sum((x - mean) ** 2 for x in xs) / (m - 1))
             wald_lo = sum(t < r["estimates"][i] - Z95 * r["std_errors"][i] for r in fits)  # truth below
             wald_hi = sum(t > r["estimates"][i] + Z95 * r["std_errors"][i] for r in fits)  # truth above
-            lr_miss = [r for r in fits if r["lambda"][i] > CHI2_95]
+            resolved = [r for r in fits if r.get("restricted_converged", [True] * len(free))[i]]
+            unresolved = m - len(resolved)
+            lr_miss = [r for r in resolved if r["lambda"][i] > CHI2_95]
             lr_lo = sum(r["estimates"][i] > t for r in lr_miss)  # interval lies above the truth
             lr_hi = sum(r["estimates"][i] <= t for r in lr_miss)
-            hits = m - len(lr_miss)
+            hits = len(resolved) - len(lr_miss)
+            mr = max(len(resolved), 1)
             params.append(
                 {
                     "name": name,
@@ -126,10 +137,12 @@ def part_a(reps: int, workers: int) -> dict:
                     "wald_coverage": (m - wald_lo - wald_hi) / m,
                     "wald_miss_truth_below": wald_lo,
                     "wald_miss_truth_above": wald_hi,
-                    "lr_coverage": hits / m,
-                    "lr_coverage_mcse": math.sqrt(max(hits / m * (1 - hits / m), 1e-300) / m),
+                    "lr_coverage": hits / mr,  # over full AND restricted fits that converged
+                    "lr_coverage_mcse": math.sqrt(max(hits / mr * (1 - hits / mr), 1e-300) / mr),
+                    # failed full fits and unresolved restricted fits as miss (low) / hit (high)
                     "lr_coverage_all_low": hits / reps,
-                    "lr_coverage_all_high": (hits + reps - m) / reps,
+                    "lr_coverage_all_high": (hits + reps - m + unresolved) / reps,
+                    "lr_unresolved": unresolved,
                     "lr_miss_truth_below": lr_lo,
                     "lr_miss_truth_above": lr_hi,
                     "restricted_above_full": sum(r["restricted_above_full"][i] for r in fits),
