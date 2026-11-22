@@ -18,6 +18,15 @@ Changelog; versioning: SemVer.
   the profile table (N-45).
 - Mutants M39–M43.
 
+### Fixed -- cross-family review of PR #7 (Codex, N-46)
+- Observed-data KL now includes outcomes with zero count (their limit `p`); sparse counts gave a
+  wrong likelihood-ratio statistic. Mutant M44.
+- Nuisance starts on 0 are projected into the open domain and "no information" is decided on the
+  linear scale; a zero start was frozen in log coordinates. Mutant M45 (survives by design: two
+  independent defences).
+- `scripts/pl_falsification.py` retries unfinished restricted fits and reports unresolved cells;
+  corrected part A in `docs/PL_FALSIFICATION_RESULTS_A_CORRECTED.json` (conclusions unchanged).
+
 ### Fixed -- R33 inner optimisation (N-44)
 - The lowest divergence over the starts is kept (a converged higher local minimum no longer
   replaces it); the Newton decrement ends the search only for undamped steps; a step the line

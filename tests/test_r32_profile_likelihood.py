@@ -649,3 +649,20 @@ def test_a_nuisance_starting_on_zero_is_still_optimised():
     pt = profile_statistic(truth, D3, ("k01", "prep_error"), "k01", 0.01)
     assert pt.converged and pt.statistic == pytest.approx(want, rel=1e-6)
     assert dict(pt.nuisance)["prep_error"] == pytest.approx(eps, rel=1e-3) and eps > 0.05
+
+
+def test_corrected_part_a_keeps_every_conclusion():
+    """N-42 / N-46: unfinished restricted fits are unresolved, not hits or misses; nothing changes."""
+    new = json.loads((ROOT / "docs" / "PL_FALSIFICATION_RESULTS_A_CORRECTED.json").read_text(encoding="utf-8"))
+    old = json.loads(RESULTS.read_text(encoding="utf-8"))["part_a"]
+    assert new["provenance"]["bound_files_dirty"] is False and new["replications"] == 1000
+    unresolved = {}
+    for run_new, run_old in zip(new["part_a"]["runs"], old["runs"], strict=True):
+        assert run_new["A0_provenance"]["pass"] and run_new["A1_lr_coverage_in_screen"]
+        for p_new, p_old in zip(run_new["parameters"], run_old["parameters"], strict=True):
+            assert p_new["lr_coverage"] == pytest.approx(p_old["lr_coverage"], abs=5e-4)
+            assert p_new["lr_coverage_all_low"] <= p_new["lr_coverage"] <= p_new["lr_coverage_all_high"]
+            if p_new["lr_unresolved"]:
+                unresolved[(run_new["sessions"], p_new["name"])] = p_new["lr_unresolved"]
+    assert unresolved == {(23_372, "bias_flip"): 2, (23_372, "error:precise"): 1}
+    assert all(v["pass"] for v in new["part_a"]["A3_tail_balance_at_23372"].values())

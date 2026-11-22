@@ -94,8 +94,19 @@ profile is a useful predictor *in this model*, not on an instrument.
 
 ## Deviations
 
-None. The run used exactly the setting above (R = 1000, the four seeds above, runner committed in
-`01048a6` before the run; provenance in the results: head `01048a6`, bound files clean).
+None in the registered run: it used exactly the setting above (R = 1000, the four seeds above,
+runner committed in `01048a6` before the run; provenance in the results: head `01048a6`, bound
+files clean).
+
+Post-run correction (cross-family review of PR #7, Codex, 2026-11-22): the registered runner counted
+a restricted fit that had not converged as a definite hit or miss. An unfinished restricted fit
+under-estimates the restricted maximum, so it can only turn a hit into a miss. The runner now retries
+such a fit once from the true values and reports a cell that still does not converge as unresolved
+(`1f015b7`). Part A was re-run with it on the same seeds into
+`docs/PL_FALSIFICATION_RESULTS_A_CORRECTED.json` (provenance `1f015b7`, bound files clean); the
+registered results file is left as run. Unresolved: 2 cells (`bias_flip`) and 1 (`error:precise`) at
+N = 23 372, none at 373 950; A0, A1 and A3 pass unchanged, coverage over resolved cells equal to three
+decimals.
 
 ## Outcome (added after the run)
 

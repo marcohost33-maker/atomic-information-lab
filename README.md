@@ -439,6 +439,10 @@ for bit):
   run's coverage screen (two-sided) could not see this.
 * It does not repair every skew: for `prep_error` at 23 372 both intervals
   miss more often below than above (Wald 29 / 9, LR 27 / 11).
+* A cross-family review (Codex) found three real defects in this round --
+  sparse observed counts, a nuisance start on 0, unfinished restricted fits in
+  the coverage runner -- all fixed with tests; the corrected re-run of part A
+  keeps every conclusion (findings N-42, N-46).
 * So for skewed parameters report the LR interval, and do not read a one-sided
   bound off either interval at small N. Its coverage is a model-internal
   measurement at one parameter point, not a guarantee.
