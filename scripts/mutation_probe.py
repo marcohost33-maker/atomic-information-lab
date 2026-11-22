@@ -354,6 +354,20 @@ MUTANTS = {
         "the observed-data statistic forgets to subtract the divergence at the full estimate",
         {PL: "relation"},
     ),
+    "M44_unobserved_mass_skipped": (
+        PL_FILE,
+        "            total += max(p.v, 0.0)\n            continue",
+        "            continue",
+        "outcomes with zero observed count are skipped in KL(emp || p) (cross-family review of PR #7)",
+        {PL: "relation"},
+    ),
+    "M45_zero_start_frozen": (
+        PL_FILE,
+        "    theta = {f: _project(max(start[f], _START_FLOOR), hi[i]) for i, f in enumerate(nuis)}",
+        "    theta = dict(start)",
+        "a nuisance start on 0 stays there in log coordinates (cross-family review of PR #7)",
+        {PL: "relation"},
+    ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")
 _GUARD_ERRORS = ("ValueError", "ArithmeticError", "ZeroDivisionError", "OverflowError", "FloatingPointError")

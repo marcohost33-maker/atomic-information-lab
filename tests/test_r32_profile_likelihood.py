@@ -621,3 +621,31 @@ def test_multistart_benchmark_refutes_no_table_point():
     table = {r["name"]: {p[0]: p[1] for p in r["points"]} for r in _table()["parameters"]}
     for row in ms["rows"]:
         assert table[row["name"]][row["value"]] == row["table_statistic"]
+
+
+# ---------------------------------------------------------------- cross-family review of PR #7 (Codex, 2026-11-22)
+@pytest.mark.parametrize("seed", [0, 1, 4, 16])
+def test_sparse_observed_counts_include_the_unobserved_mass(seed):
+    """Outcomes never observed contribute their probability to KL(emp || p); skipping them was wrong."""
+    from atomic_information_lab.estimation import fit_mle
+    from atomic_information_lab.identifiability import outcome_distribution
+
+    counts = _sample(30, seed)
+    assert len(counts) < len(outcome_distribution(CAL, D3))  # positive control: the data are sparse
+    start = CAL.with_values({"k01": 0.084})
+    lam, ok, _ = likelihood_ratio_statistic(start, D3, ("k01",), counts, "k01", 0.14)
+    full = fit_mle(start, D3, ("k01",), counts)
+    p = outcome_distribution(CAL.with_values({"k01": 0.14}), D3)
+    loglik = math.fsum(n * math.log(p[o]) for o, n in counts.items())
+    assert full.converged and ok
+    assert lam == pytest.approx(2 * (full.log_likelihood - loglik), rel=1e-9, abs=1e-12)
+
+
+def test_a_nuisance_starting_on_zero_is_still_optimised():
+    """The default prep_error = 0 must not freeze the nuisance parameter in log coordinates."""
+    truth = Calibration()  # prep_error = 0
+    p = session_distribution(spec_of(truth), D3.sequence, D3.known_write)
+    want, eps = _oracle_min_over(p, truth, D3, {"k01": 0.01}, "prep_error", 1e-9, 0.4999)
+    pt = profile_statistic(truth, D3, ("k01", "prep_error"), "k01", 0.01)
+    assert pt.converged and pt.statistic == pytest.approx(want, rel=1e-6)
+    assert dict(pt.nuisance)["prep_error"] == pytest.approx(eps, rel=1e-3) and eps > 0.05

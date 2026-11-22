@@ -96,6 +96,7 @@ _INNER_ITER = 200
 _INNER_REL_STEP = 1e-10
 _INNER_DECREMENT = 1e-10  # converged when scoring promises < 1e-10 relative improvement of the divergence
 _LOWER = 1e-12  # nuisance parameters stay >= this (the domain is open at 0 for relative scales)
+_START_FLOOR = 1e-8  # a nuisance start below this (e.g. exactly 0) is moved here before the search
 _BISECT_REL = 1e-4  # interval end points to 1e-4 of their distance from the truth
 _UPPER = {"bias_flip": 0.5, "prep_error": 0.5, "bias_prior": 1.0}
 
@@ -129,10 +130,17 @@ def _h(p: float, q: float) -> float:
 
 
 def _kl(target: dict, cal: Calibration, design: Design) -> float | None:
+    """KL(target || p) as the sum of non-negative terms ``q (u - 1 - log u)``, ``u = p / q``.
+
+    An outcome with ``q = 0`` (never observed) contributes its limit ``p``: the terms ``p - q`` only
+    cancel over ALL outcomes, so skipping it would subtract the unobserved mass, which moves with the
+    parameters (cross-family review of PR #7, sparse observed counts).
+    """
     total = 0.0
     for o, p in _leaves(cal, design, ()):
         q = target[o]
         if q == 0.0:
+            total += max(p.v, 0.0)
             continue
         if not p.v > 0.0:
             return None
@@ -177,7 +185,10 @@ def _inner(
     relative improvement, or a full undamped step is below ``_INNER_REL_STEP``
     relative; a step the line search had to shorten never counts as convergence.
     """
-    theta = dict(start)
+    # a start on the lower bound (e.g. the default prep_error = 0) would have no score in log coordinates
+    # and be frozen there: every start is projected into the open domain first (cross-family review, PR #7)
+    hi = [_upper_bound(f) for f in nuis]
+    theta = {f: _project(max(start[f], _START_FLOOR), hi[i]) for i, f in enumerate(nuis)}
     try:
         cal = truth.with_values({name: value, **theta})
     except ValueError:
@@ -188,7 +199,6 @@ def _inner(
     if not nuis:
         return cur, theta, True, "converged"
     k = len(nuis)
-    hi = [_upper_bound(f) for f in nuis]
     for _ in range(_INNER_ITER):
         score = [0.0] * k
         fim = [[0.0] * k for _ in range(k)]
@@ -205,6 +215,11 @@ def _inner(
                     for j in range(k):
                         row[j] += gi * p.g[j]
         vals = [theta[f] for f in nuis]
+        # "no information" is decided on the linear scale (a small value has small log-scale information
+        # although the data inform it): information about a relative change, with values floored at 1e-6
+        scaled = [fim[i][i] * max(vals[i], 1e-6) ** 2 for i in range(k)]
+        top = max(scaled)
+        mute = [scaled[i] <= 1e-24 * top for i in range(k)]
         # log coordinates (u = log value): rates and back-action factors span orders of magnitude, and
         # the drift/back-action valley (only k * beta enters) is straight in log space
         for i in range(k):
@@ -216,8 +231,6 @@ def _inner(
         held = [a or b for a, b in zip(at_low, at_high, strict=True)]
         # a parameter the data say nothing about here (e.g. a drift rate while every reading is pure noise)
         # cannot move the divergence: it keeps its value instead of making the system singular
-        top = max(fim[i][i] for i in range(k))
-        mute = [fim[i][i] <= 1e-24 * top for i in range(k)]
         idx = [i for i in range(k) if not held[i] and not mute[i]]
         if not idx:
             return cur, theta, True, _bound_reason(nuis, held)
