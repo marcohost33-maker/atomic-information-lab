@@ -189,7 +189,9 @@ def _inner(
     # and be frozen there: every start is projected into the open domain first (cross-family review, PR #7);
     # the linear-scale "no information" test below is what keeps such a parameter moving
     hi = [_upper_bound(f) for f in nuis]
-    theta = {f: _project(max(start[f], _START_FLOOR), hi[i]) for i, f in enumerate(nuis)}
+    # a start that lacks a nuisance parameter takes its true value (a partial start is not an error)
+    tv = truth.parameters()
+    theta = {f: _project(max(start.get(f, tv[f]), _START_FLOOR), hi[i]) for i, f in enumerate(nuis)}
     try:
         cal = truth.with_values({name: value, **theta})
     except ValueError:
