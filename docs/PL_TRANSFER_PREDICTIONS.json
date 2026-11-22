@@ -1,0 +1,320 @@
+{
+  "runs": [
+    {
+      "design": [
+        "fast",
+        "precise",
+        "reference",
+        "precise"
+      ],
+      "known_write": true,
+      "sessions": 417942,
+      "level": 0.6826894921370859,
+      "parameters": [
+        {
+          "name": "k01",
+          "true_value": 0.07,
+          "profile_to_crlb": 1.0281000190931713,
+          "asymmetry": 0.9461433330840229,
+          "interval_1se": [
+            0.06421124267578127,
+            0.07592462158203125
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 1.0002606775862,
+          "predicted_bias": 0.000970458984375049
+        },
+        {
+          "name": "k10",
+          "true_value": 0.045,
+          "profile_to_crlb": 1.032411762882148,
+          "asymmetry": 0.9382961320533566,
+          "interval_1se": [
+            0.041230041503906245,
+            0.04887322998046874
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 1.0003518192877037,
+          "predicted_bias": 0.0011474609374998509
+        },
+        {
+          "name": "bias_flip",
+          "true_value": 0.025,
+          "profile_to_crlb": 1.0036617051009527,
+          "asymmetry": 0.9930974903029608,
+          "interval_1se": [
+            0.024293937683105477,
+            0.02570674896240234
+          ],
+          "bounded": true,
+          "not_converged": 1,
+          "predicted_rse_ratio": 1.0000397434048673,
+          "predicted_bias": 1.3732910156272204e-05
+        },
+        {
+          "name": "prep_error",
+          "true_value": 0.02,
+          "profile_to_crlb": 1.0068738615434727,
+          "asymmetry": 1.013778734191195,
+          "interval_1se": [
+            0.0118876953125,
+            0.027893554687500002
+          ],
+          "bounded": true,
+          "not_converged": 4,
+          "predicted_rse_ratio": 1.000367315968615,
+          "predicted_bias": -0.005468749999999918
+        },
+        {
+          "name": "bias_prior",
+          "true_value": 0.5,
+          "profile_to_crlb": 1.037049180136254,
+          "asymmetry": 1.000000000000001,
+          "interval_1se": [
+            0.499083948135376,
+            0.5009160518646241
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 1.0000432388043485,
+          "predicted_bias": 0.0
+        },
+        {
+          "name": "error:fast",
+          "true_value": 0.12,
+          "profile_to_crlb": 1.0119403924487753,
+          "asymmetry": 1.0210330760508348,
+          "interval_1se": [
+            0.11903100585937498,
+            0.12096817016601563
+          ],
+          "bounded": true,
+          "not_converged": 3,
+          "predicted_rse_ratio": 1.000043702332626,
+          "predicted_bias": -3.433227539068051e-06
+        },
+        {
+          "name": "error:precise",
+          "true_value": 0.035,
+          "profile_to_crlb": 1.0015633002006283,
+          "asymmetry": 1.002421446653117,
+          "interval_1se": [
+            0.034131408691406254,
+            0.03586832427978516
+          ],
+          "bounded": true,
+          "not_converged": 1,
+          "predicted_rse_ratio": 1.0000194794391088,
+          "predicted_bias": -3.8146972656091393e-06
+        },
+        {
+          "name": "error:reference",
+          "true_value": 0.025,
+          "profile_to_crlb": 1.0106685278948124,
+          "asymmetry": 1.021332685049609,
+          "interval_1se": [
+            0.020541687011718747,
+            0.029375915527343754
+          ],
+          "bounded": true,
+          "not_converged": 7,
+          "predicted_rse_ratio": 1.000246932027053,
+          "predicted_bias": -0.0016479492187500278
+        },
+        {
+          "name": "backaction:precise",
+          "true_value": 3.5,
+          "profile_to_crlb": 1.1784302413282888,
+          "asymmetry": 0.7099765304975436,
+          "interval_1se": [
+            3.2252166748046873,
+            3.8173583984375004
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 1.0052887760349722,
+          "predicted_bias": 0.0060821533203125255
+        },
+        {
+          "name": "backaction:reference",
+          "true_value": 0.55,
+          "profile_to_crlb": 1.11184204091537,
+          "asymmetry": 0.8063823503895925,
+          "interval_1se": [
+            0.4934490966796875,
+            0.6135870361328126
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 1.0042712204594793,
+          "predicted_bias": 0.006396484374999935
+        }
+      ],
+      "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+      "seconds": 127.1,
+      "notes": [
+        "predictions from the expected-data profile (Delta = 1 interval) under a normalising-transform model; model-internal, one parameter point, one design"
+      ]
+    },
+    {
+      "design": [
+        "fast",
+        "precise",
+        "reference",
+        "precise"
+      ],
+      "known_write": true,
+      "sessions": 30894,
+      "level": 0.6826894921370859,
+      "parameters": [
+        {
+          "name": "k01",
+          "true_value": 0.07,
+          "profile_to_crlb": 1.0281000190931713,
+          "asymmetry": 0.9461433330840229,
+          "interval_1se": [
+            0.049322998046875,
+            0.09099316406249999
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 0.9674650778411381,
+          "predicted_bias": 0.0022583007812497303
+        },
+        {
+          "name": "k10",
+          "true_value": 0.045,
+          "profile_to_crlb": 1.032411762882148,
+          "asymmetry": 0.9382961320533566,
+          "interval_1se": [
+            0.031594482421875,
+            0.0590526123046875
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 0.9770757055438621,
+          "predicted_bias": 0.0071899414062500605
+        },
+        {
+          "name": "bias_flip",
+          "true_value": 0.025,
+          "profile_to_crlb": 1.0036617051009527,
+          "asymmetry": 0.9930974903029608,
+          "interval_1se": [
+            0.022406158447265626,
+            0.0276031494140625
+          ],
+          "bounded": true,
+          "not_converged": 1,
+          "predicted_rse_ratio": 1.0001476785909662,
+          "predicted_bias": 0.00018615722656240008
+        },
+        {
+          "name": "prep_error",
+          "true_value": 0.02,
+          "profile_to_crlb": 1.0068738615434727,
+          "asymmetry": 1.013778734191195,
+          "interval_1se": [
+            null,
+            0.04807421875
+          ],
+          "bounded": false,
+          "not_converged": 4,
+          "predicted_rse_ratio": null,
+          "predicted_bias": null
+        },
+        {
+          "name": "bias_prior",
+          "true_value": 0.5,
+          "profile_to_crlb": 1.037049180136254,
+          "asymmetry": 1.000000000000001,
+          "interval_1se": [
+            0.4966300964355469,
+            0.5033699035644532
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 1.000219346818264,
+          "predicted_bias": 0.0
+        },
+        {
+          "name": "error:fast",
+          "true_value": 0.12,
+          "profile_to_crlb": 1.0119403924487753,
+          "asymmetry": 1.0210330760508348,
+          "interval_1se": [
+            0.11643182373046874,
+            0.12355718994140624
+          ],
+          "bounded": true,
+          "not_converged": 3,
+          "predicted_rse_ratio": 1.0000892837660635,
+          "predicted_bias": -4.577636718757402e-05
+        },
+        {
+          "name": "error:precise",
+          "true_value": 0.035,
+          "profile_to_crlb": 1.0015633002006283,
+          "asymmetry": 1.002421446653117,
+          "interval_1se": [
+            0.031803558349609365,
+            0.03819302368164064
+          ],
+          "bounded": true,
+          "not_converged": 1,
+          "predicted_rse_ratio": 1.0001688576065475,
+          "predicted_bias": -4.882812500003489e-05
+        },
+        {
+          "name": "error:reference",
+          "true_value": 0.025,
+          "profile_to_crlb": 1.0106685278948124,
+          "asymmetry": 1.021332685049609,
+          "interval_1se": [
+            0.008148193359374998,
+            0.040024414062500006
+          ],
+          "bounded": true,
+          "not_converged": 7,
+          "predicted_rse_ratio": 0.9812608839389075,
+          "predicted_bias": -0.03654785156249993
+        },
+        {
+          "name": "backaction:precise",
+          "true_value": 3.5,
+          "profile_to_crlb": 1.1784302413282888,
+          "asymmetry": 0.7099765304975436,
+          "interval_1se": [
+            2.680157470703125,
+            4.975109863281251
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 1.0592974181567874,
+          "predicted_bias": 0.09360961914062507
+        },
+        {
+          "name": "backaction:reference",
+          "true_value": 0.55,
+          "profile_to_crlb": 1.11184204091537,
+          "asymmetry": 0.8063823503895925,
+          "interval_1se": [
+            0.367342529296875,
+            0.8342114257812502
+          ],
+          "bounded": true,
+          "not_converged": 0,
+          "predicted_rse_ratio": 1.0610719715131085,
+          "predicted_bias": 0.09232177734375002
+        }
+      ],
+      "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+      "seconds": 127.3,
+      "notes": [
+        "predictions from the expected-data profile (Delta = 1 interval) under a normalising-transform model; model-internal, one parameter point, one design"
+      ]
+    }
+  ]
+}
