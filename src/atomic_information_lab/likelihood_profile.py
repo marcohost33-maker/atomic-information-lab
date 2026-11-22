@@ -135,8 +135,8 @@ def _kl(target: dict, cal: Calibration, design: Design) -> float | None:
     return total
 
 
-def _solve_damped(fim: list[list[float]], score: list[float]) -> list[float] | None:
-    """Levenberg-damped Fisher-scoring step; damping grows until the system is solvable."""
+def _solve_damped(fim: list[list[float]], score: list[float]) -> tuple[list[float], float] | None:
+    """Levenberg-damped Fisher-scoring step and the damping used; damping grows until solvable."""
     from .estimation import _solve
 
     n = len(score)
@@ -146,7 +146,7 @@ def _solve_damped(fim: list[list[float]], score: list[float]) -> list[float] | N
         a = [[fim[i][j] + (mu * diag[i] if i == j else 0.0) for j in range(n)] for i in range(n)]
         step = _solve(a, score)
         if step is not None and all(isfinite(s) for s in step):
-            return step
+            return step, mu
     return None
 
 
@@ -168,8 +168,9 @@ def _inner(
     while the gradient pushes it outwards is held there (active set), the
     others take a damped scoring step, the trial point is projected into the
     domain and halved until the divergence does not increase. Converged when
-    the scoring decrement promises less than ``_INNER_DECREMENT`` relative
-    improvement, or the step is below ``_INNER_REL_STEP`` relative.
+    the UNDAMPED scoring decrement promises less than ``_INNER_DECREMENT``
+    relative improvement, or a full undamped step is below ``_INNER_REL_STEP``
+    relative; a step the line search had to shorten never counts as convergence.
     """
     theta = dict(start)
     try:
@@ -215,34 +216,46 @@ def _inner(
         idx = [i for i in range(k) if not held[i] and not mute[i]]
         if not idx:
             return cur, theta, True, _bound_reason(nuis, held)
-        sub = _solve_damped([[fim[i][j] for j in idx] for i in idx], [score[i] for i in idx])
-        if sub is None:
+        solved = _solve_damped([[fim[i][j] for j in idx] for i in idx], [score[i] for i in idx])
+        if solved is None:
             return cur, theta, False, "singular Fisher information"
+        sub, mu = solved
         step = [0.0] * k
         for a, i in enumerate(idx):
             step[i] = sub[a]
-        decrement = sum(step[i] * score[i] for i in idx)  # about twice the promised improvement
-        if cur == 0.0 or decrement <= _INNER_DECREMENT * cur:
+        # The decrement s' F^-1 s (about twice the promised improvement) is a convergence test only for an
+        # UNDAMPED step: damping shrinks it and would stop the search early.
+        decrement = sum(step[i] * score[i] for i in idx)
+        if cur == 0.0 or (mu == 0.0 and decrement <= _INNER_DECREMENT * cur):
             return cur, theta, True, _bound_reason(nuis, held)
-        t = 1.0
-        while True:
-            new = {f: _project(vals[i] * _exp(t * step[i]), hi[i]) for i, f in enumerate(nuis)}
-            cand = None
-            try:
-                cal_new = truth.with_values({name: value, **new})
-                cand = _kl(target, cal_new, design)
-            except (ValueError, ArithmeticError):
-                cand = None
-            if cand is not None and cand <= cur * (1 + 1e-12):
-                break
-            t *= 0.5
-            if t < 2**-40:
-                return cur, theta, False, "no admissible descent step"
+        evaluated = _line_search(truth, design, name, value, nuis, vals, step, hi, cur, target)
+        if evaluated is None:
+            return cur, theta, False, "no admissible descent step"
+        new, cal_new, cand, full = evaluated
         rel = max(abs(new[f] - vals[i]) / max(abs(new[f]), _LOWER) for i, f in enumerate(nuis))
         theta, cal, cur = new, cal_new, cand
-        if rel < _INNER_REL_STEP:
+        # a tiny step counts as convergence only if it was the full, undamped scoring step -- a step the
+        # line search had to halve many times is stagnation, not an optimum
+        if rel < _INNER_REL_STEP and full and mu == 0.0:
             return cur, theta, True, _bound_reason(nuis, held)
     return cur, theta, False, "iteration limit"
+
+
+def _line_search(truth, design, name, value, nuis, vals, step, hi, cur, target):
+    """Projected step with halving; returns (values, calibration, divergence, full_step) or None."""
+    t = 1.0
+    while True:
+        new = {f: _project(vals[i] * _exp(t * step[i]), hi[i]) for i, f in enumerate(nuis)}
+        try:
+            cal_new = truth.with_values({name: value, **new})
+            cand = _kl(target, cal_new, design)
+        except (ValueError, ArithmeticError):
+            cand = None
+        if cand is not None and cand <= cur * (1 + 1e-12):
+            return new, cal_new, cand, t == 1.0
+        t *= 0.5
+        if t < 2**-40:
+            return None
 
 
 def _exp(u: float) -> float:
@@ -282,14 +295,25 @@ def profile_statistic(
         raise ArithmeticError("outcome probabilities are not a distribution")
     cold = {f: truth_values[f] for f in nuis}
     starts = [cold] if start is None else [dict(start), cold]
+    v, th, ok, why = _best_of(truth, design, name, value, nuis, starts, target)
+    stat = 2.0 * v if isfinite(v) else float("inf")
+    return ProfilePoint(float(value), stat, ok, why, tuple(sorted(th.items())))
+
+
+def _best_of(truth, design, name, value, nuis, starts, target):
+    """The LOWEST divergence over the starts, with that run's convergence flag.
+
+    Every feasible point bounds the minimum from above, so the lower value is always the better
+    estimate of the profile -- a higher value that happens to be a converged local minimum must never
+    replace it. If the lowest run did not converge, the point is reported as not converged and enters no
+    figure.
+    """
     best = None
     for s in starts:
         v, th, ok, why = _inner(truth, design, name, value, nuis, s, target)
-        if best is None or (ok and not best[2]) or (ok == best[2] and v < best[0]):
+        if best is None or v < best[0] or (v == best[0] and ok and not best[2]):
             best = (v, th, ok, why)
-    v, th, ok, why = best
-    stat = 2.0 * v if isfinite(v) else float("inf")
-    return ProfilePoint(float(value), stat, ok, why, tuple(sorted(th.items())))
+    return best
 
 
 @dataclass(frozen=True)
@@ -355,16 +379,27 @@ def _side_offsets(distance: float, step: float) -> list[float]:
 
 
 def _scan(truth, design, free, name, offsets, sign):
-    """March from the truth outwards; every point is warm-started from its inner neighbour."""
+    """Continuation in both directions along one side of the profile.
+
+    Forward: from the truth outwards, every point started from its inner neighbour and from the true
+    values. Backward: from the outermost point inwards, every point re-started from its outer neighbour;
+    the lower divergence is kept. The profile of this model has several local minima far from the truth
+    (finding N-41); a single forward sweep can stay in a higher valley.
+    """
     tv = truth.parameters()[name]
-    nuis = [f for f in free if f != name]
+    nuis = tuple(f for f in free if f != name)
+    target = {o: p.v for o, p in _leaves(truth, design, ())}
     warm = {f: truth.parameters()[f] for f in nuis}
     out = []
     for d in offsets:
         pt = profile_statistic(truth, design, free, name, tv + sign * d, warm)
         out.append(pt)
-        if pt.converged:
-            warm = dict(pt.nuisance)
+        warm = dict(pt.nuisance)  # the lowest point found is the best start, converged or not
+    for k in range(len(out) - 2, -1, -1):
+        cur, outer = out[k], out[k + 1]
+        v, th, ok, why = _best_of(truth, design, name, cur.value, nuis, [dict(outer.nuisance)], target)
+        if 2.0 * v < cur.statistic:
+            out[k] = ProfilePoint(cur.value, 2.0 * v, ok, why, tuple(sorted(th.items())))
     return out
 
 
