@@ -482,7 +482,7 @@ for bit):
   z-scores (`|z| ≤ 5`; measured null 2.0–2.7, wrong stories 28–91). This is
   the only check that sees a consistent transcription error such as swapped
   rates.
-* **Reproducible mutation probe** (`scripts/mutation_probe.py`, a CI step):
+* **Reproducible mutation probe** (`scripts/mutation_probe.py`, its own CI job):
   thirteen model, planner and retention mutants are applied to a copy of `src/`; each
   suite's verdict (`relation`, `guard`, `survives`) is compared with the
   expected one, after a green baseline and a check that the copy is what was

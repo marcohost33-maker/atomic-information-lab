@@ -17,6 +17,8 @@ Changelog; versioning: SemVer.
 - `scripts/pl_multistart.py` and `docs/PL_MULTISTART.json`: random multi-start benchmark against
   the profile table (N-45).
 - Mutants M39–M43.
+- CI: the mutation probe runs as its own job (75 min limit); with 45 mutants it outgrew the 20-minute
+  limit of the test matrix, which cancelled the job.
 
 ### Fixed -- cross-family review of PR #7 (Codex, N-46)
 - Observed-data KL now includes outcomes with zero count (their limit `p`); sparse counts gave a

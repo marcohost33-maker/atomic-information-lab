@@ -1,4 +1,4 @@
-"""Cheap guard for scripts/mutation_probe.py (the probe itself runs as a CI step).
+"""Cheap guard for scripts/mutation_probe.py (the probe itself runs as its own CI job).
 
 Every mutant anchor must still occur exactly once in the current source, or
 the probe would silently stop testing what it claims to test.
