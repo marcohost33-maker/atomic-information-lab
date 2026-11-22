@@ -94,4 +94,14 @@ profile is a useful predictor *in this model*, not on an instrument.
 
 ## Deviations
 
-None so far.
+None. The run used exactly the setting above (R = 1000, the four seeds above, runner committed in
+`01048a6` before the run; provenance in the results: head `01048a6`, bound files clean).
+
+## Outcome (added after the run)
+
+* A0 pass (both N reproduce the registered run bit for bit, deviation 0.0); A1 pass (LR coverage
+  0.939–0.962 in all 20 cells); A3 pass for both parameters (Wald 0 / 36 and 0 / 45, LR 27 / 19 and
+  29 / 19 below / above).
+* B1 **fail** (`k01`, `k10` biased −8.9 % and −9.1 % at N = 30 894 against predicted +0.2 % and
+  +0.7 %); B2 pass (+18.4 %, +18.5 %); B3 pass; B4 14 / 19; B5 16 / 19; B6 pass (365 against 9
+  failed fits). **Verdict by the decision rule: N-37 not transferred** (FINDINGS N-43).

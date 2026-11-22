@@ -5,6 +5,25 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Added -- R33: self-review, observed-data intervals, pre-registered falsification
+- `likelihood_ratio_interval` / `likelihood_ratio_statistic` / `DataInterval`: likelihood-ratio
+  (profile) intervals from OBSERVED outcome counts, next to the Wald interval; CLI `lr-interval
+  --counts counts.json`. `pl_scope = OBSERVED_DATA_LIKELIHOOD_RATIO_WILKS_MODEL_INTERNAL`.
+- Pre-registered protocol `docs/PL_FALSIFICATION_PROTOCOL.md` (committed before the run), runner
+  `scripts/pl_falsification.py`, predictions `scripts/pl_predict.py` /
+  `docs/PL_TRANSFER_PREDICTIONS.json`, results `docs/PL_FALSIFICATION_RESULTS.json`: LR coverage
+  0.939–0.962 on the registered data; Wald misses one-sided where the profile is skewed (N-42);
+  the transfer of N-37 to a second design is refuted by the registered rule (N-43).
+- `scripts/pl_multistart.py` and `docs/PL_MULTISTART.json`: random multi-start benchmark against
+  the profile table (N-45).
+- Mutants M39–M43.
+
+### Fixed -- R33 inner optimisation (N-44)
+- The lowest divergence over the starts is kept (a converged higher local minimum no longer
+  replaces it); the Newton decrement ends the search only for undamped steps; a step the line
+  search shortened never counts as convergence; continuation runs outwards and back inwards.
+  Table figures unchanged; 18 far points now reported as not converged.
+
 ### Added -- profile likelihood for practical identifiability (R32: roadmap R29 / P1)
 - `likelihood_profile` module (`profile_likelihood`, `profile_report`, `profile_statistic`,
   `ParameterProfile`, `LikelihoodInterval`): profile likelihood after Raue et al. (2009) on the

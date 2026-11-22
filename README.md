@@ -361,7 +361,7 @@ profile answers every N:
 Registered calibration design (`fast, reference, precise, reference, fast,
 precise`, known writes, fast back-action as anchor), every parameter
 (`python -m atomic_information_lab reproduce --table profile-likelihood`,
-about six minutes; `docs/PROFILE_LIKELIHOOD.json`):
+about eleven minutes; `docs/PROFILE_LIKELIHOOD.json`):
 
 | parameter | sessions, at least (CRLB) | profile count | profile/CRLB | asymmetry | 95 % interval bounded from N = |
 |---|--:|--:|--:|--:|--:|
@@ -386,10 +386,14 @@ What it shows (findings N-36–N-39, all model-internal):
 * **The back-action factors are not quadratic.** For `backaction:precise`
   the local picture understates the effort by 23 %, for
   `backaction:reference` by 7.5 %; both profiles are flatter above the truth.
-  Post hoc and descriptive: these are exactly the two parameters whose MLE was
-  biased upwards (> 3 Monte-Carlo SE) at count/16 in the registered run
-  (+2.9 %, +7.3 %, `docs/ESTIMATOR_CALIBRATION_RESULTS.json`). The profile names
-  them from the expected data alone, without a simulation.
+  On the registered design these are exactly the two parameters whose MLE was
+  biased upwards (> 3 Monte-Carlo SE) at count/16 (+2.9 %, +7.3 %; post hoc,
+  N-37). **A pre-registered transfer to a second design did not hold up**
+  (N-43): the back-action effect appeared where predicted and was absent where
+  predicted absent, but its size was twice the prediction, and the drift rates,
+  predicted unbiased, came out −9 % in a regime where 37 % of the fits failed.
+  Read the profile as a diagnostic of *which* parameters are non-quadratic, not
+  as a predictor of the MLE's bias.
 * **Practical identifiability sets in early but unevenly.** With fewer than 15 249 sessions the 95 % interval of `prep_error` runs to the lower end of the scan (2⁻¹⁰ of the true value) -- the data cannot exclude a perfect preparation; the drift rates need 1 710 and `backaction:reference` 4 257 sessions on that side, while `backaction:precise` needs 1 756 sessions before its interval closes *above* (within 64 × its value). `bias_prior` is bounded from 6 sessions.
   At the registered counts (23 372 and 373 950) every 95 % interval is
   bounded and every profile is unimodal, e.g. `prep_error` at 373 950:
@@ -399,12 +403,45 @@ What it shows (findings N-36–N-39, all model-internal):
   error) or falls back to a second zero (label swap, `π = 3e-32` at the
   swapped point) and is flagged as non-monotone.
 
-Limits (`pl_scope`): expected data only -- the spread of intervals over
-repeated experiments and the finite-N coverage of Wilks' threshold are not
-measured; one parameter point and design; "bounded" means within the scan
-grid, and counts read off the grid are conservative; the inner optimisation is
-local (two starts per point, checked against a global search of the oracle
-for one nuisance parameter).
+Limits (`pl_scope`): expected data -- the intervals here describe the
+typical experiment; their coverage on sampled data is measured below; one
+parameter point and design; "bounded" means within the scan grid, and counts
+read off the grid are conservative; the inner optimisation is local
+(continuation in both directions plus a start at the truth; checked against a
+global search of the oracle for one nuisance parameter and by a multi-start
+benchmark, N-45). 18 of 341 far points are reported as not converged and enter
+no figure.
+
+### Intervals from observed data, and why not Wald (R33, pre-registered)
+
+`likelihood_ratio_interval(start, design, free, counts, name)` gives the
+likelihood-ratio (profile) interval of one parameter from **observed** outcome
+counts, next to the Wald interval (CLI `lr-interval --counts counts.json`). Its
+behaviour was measured in a protocol committed before the run
+(`docs/PL_FALSIFICATION_PROTOCOL.md`, results `docs/PL_FALSIFICATION_RESULTS.json`),
+on the very data of the registered estimator run (same seeds, reproduced bit
+for bit):
+
+| N | parameter | Wald coverage | Wald misses below / above | LR coverage | LR misses below / above |
+|--:|---|--:|--:|--:|--:|
+| 23 372 | `prep_error` | 0.962 | 29 / 9 | 0.962 | 27 / 11 |
+| 23 372 | `backaction:precise` | 0.964 | 0 / 36 | 0.954 | 27 / 19 |
+| 23 372 | `backaction:reference` | 0.955 | 0 / 45 | 0.952 | 29 / 19 |
+| 373 950 | `prep_error` | 0.942 | 32 / 26 | 0.943 | 31 / 26 |
+| 373 950 | `backaction:precise` | 0.953 | 18 / 29 | 0.955 | 24 / 21 |
+| 373 950 | `backaction:reference` | 0.950 | 16 / 34 | 0.950 | 24 / 26 |
+
+* LR coverage lies in 0.939–0.962 for all ten parameters at both N (screen
+  [0.93, 0.97]; finding N-42).
+* **Two-sided Wald coverage hid a one-sided failure.** Where the profile is
+  skewed, the Wald interval never misses below and misses above 3.6–4.5 % of
+  the time instead of 2.5 %; the LR interval splits its misses. The registered
+  run's coverage screen (two-sided) could not see this.
+* It does not repair every skew: for `prep_error` at 23 372 both intervals
+  miss more often below than above (Wald 29 / 9, LR 27 / 11).
+* So for skewed parameters report the LR interval, and do not read a one-sided
+  bound off either interval at small N. Its coverage is a model-internal
+  measurement at one parameter point, not a guarantee.
 
 ## How it is verified
 
@@ -462,7 +499,10 @@ for one nuisance parameter).
   at every exact witness and the label swap as a second zero; the definitions
   of `bounded_sessions`, nested intervals and the Wilks threshold exactly;
   non-converged points never close an interval; the consumer contract of the
-  CLI; mutants M34–M38.
+  CLI; mutants M34–M38. R33 adds regressions for four defects of the inner
+  optimisation found in self-review (M39–M42), the observed-data statistic
+  against log-likelihood differences of `fit_mle` (M43), and the
+  pre-registered results.
 * Mutation probes: each guard was removed in turn and the corresponding test
   was required to fail (15/15).
 
@@ -486,6 +526,8 @@ python -m atomic_information_lab solve --horizon 4 --profile
 python -m atomic_information_lab designs --length 5 --pareto
 python -m atomic_information_lab profile-likelihood --design fast,reference,precise --known-write \
     --free k01,backaction:precise --sessions 1000,100000
+python -m atomic_information_lab lr-interval --design fast,reference,precise --known-write \
+    --free k01,backaction:precise --param k01 --counts counts.json
 ```
 
 ```python
@@ -532,7 +574,7 @@ From section 13.1 of the R1–R12 report (2026-10-18):
 | R29 / P1 | Does the MLE reach the Cramér–Rao counts? Pre-registered, chain checked from git, scope on every CRLB figure (cross-family R30) | **done, model-internal** (`estimation.py`; findings N-28–N-31) |
 | R29-02 | Separate outputs Bayes risk / MI(X0;Y) / P(X_T≠X0) / energy / steps | **done** (`metrics.py`, oracle-verified; finding N-32; same-family, cross-family review pending) |
 | R29-03 | Pareto list in `design_search` instead of a single D-optimal winner | **done** (`design_pareto`, Fisher spectrum on every report; findings N-33, N-34; same-family, cross-family review pending) |
-| R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | **done, expected data** (`likelihood_profile.py`; findings N-36–N-40; same-family, cross-family review pending; coverage over repeated experiments open) |
+| R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | **done** (`likelihood_profile.py`: expected-data profiles, observed-data LR intervals; LR coverage measured pre-registered; findings N-36–N-45; same-family) |
 | R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | open (continuous line, no exact oracle yet) |
 | R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |
 | R15 / P2 | Laboratory integration (STM/AFM raw data); Hexa-NTK / CodeFactory adapters | open, outside this repository |
