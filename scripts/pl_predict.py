@@ -31,7 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from atomic_information_lab.identifiability import Calibration, Design, parameter_names  # noqa: E402
+from atomic_information_lab.identifiability import SESSIONS_SCOPE, Calibration, Design, parameter_names  # noqa: E402
 from atomic_information_lab.likelihood_profile import PL_SCOPE, profile_likelihood  # noqa: E402
 
 LEVEL_1SE = 0.6826894921370859  # chi-square(1) quantile 1.0
@@ -53,6 +53,8 @@ def _one(args):
         "not_converged": r.not_converged,
         "predicted_rse_ratio": None,
         "predicted_bias": None,
+        "pl_scope": PL_SCOPE,
+        "sessions_scope": SESSIONS_SCOPE,  # profile_to_crlb holds a Cramer-Rao figure (R30 consumer contract)
     }
     if iv.bounded and r.crlb_rse is not None:
         se = r.crlb_rse * r.true_value / math.sqrt(sessions)
