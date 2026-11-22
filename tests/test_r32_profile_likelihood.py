@@ -36,11 +36,14 @@ from _ident_oracle import session_distribution, spec_of
 from atomic_information_lab import profile_likelihood as public_profile_likelihood
 from atomic_information_lab.identifiability import Calibration, Design, identifiability, parameter_names
 from atomic_information_lab.likelihood_profile import (
+    DATA_PL_SCOPE,
     FLAT_TOL,
     PL_SCOPE,
     PL_SCOPE_TEXT,
     ParameterProfile,
     chi2_1_quantile,
+    likelihood_ratio_interval,
+    likelihood_ratio_statistic,
     profile_likelihood,
     profile_report,
     profile_statistic,
@@ -225,6 +228,66 @@ def test_unconverged_points_never_bound_an_interval(monkeypatch):
     assert iv.low_open and iv.high_open and not iv.bounded
 
 
+# ---------------------------------------------------------------- regressions of the R33 self-review (N-41)
+def test_the_lowest_divergence_wins_over_a_converged_higher_one(monkeypatch):
+    """Every feasible point bounds the minimum from above: a lower, non-converged value must not be replaced."""
+    mod = sys.modules["atomic_information_lab.likelihood_profile"]
+
+    def two_valleys(truth, design, name, value, nuis, start, target):
+        if start.get("backaction:precise") == 99.0:
+            return 0.25, dict(start), False, "iteration limit"  # deeper valley, search not finished
+        return 0.5, dict(start), True, "converged"  # shallower valley, converged
+
+    monkeypatch.setattr(mod, "_inner", two_valleys)
+    pt = profile_statistic(CAL, D3, PAIR, "k01", 0.1, {"backaction:precise": 99.0})
+    assert pt.statistic == 0.5 and not pt.converged and pt.reason == "iteration limit"
+
+
+def test_a_damped_step_never_counts_as_convergence(monkeypatch):
+    """With damping the decrement shrinks; a search that only ever takes damped steps must not converge."""
+    mod = sys.modules["atomic_information_lab.likelihood_profile"]
+    monkeypatch.setattr(mod, "_solve_damped", lambda fim, score: ([0.0] * len(score), 1.0))
+    monkeypatch.setattr(mod, "_INNER_ITER", 5)
+    pt = profile_statistic(CAL, D3, PAIR, "k01", 0.1)
+    assert not pt.converged and pt.reason == "iteration limit"
+
+
+def test_a_shortened_step_never_counts_as_convergence(monkeypatch):
+    """A step the line search had to halve is stagnation, not an optimum, even when it is tiny."""
+    mod = sys.modules["atomic_information_lab.likelihood_profile"]
+    real = mod._line_search
+
+    def halved(*args):
+        new, cal, cand, _full = real(*args)
+        return new, cal, cand, False  # pretend every accepted step was shortened
+
+    monkeypatch.setattr(mod, "_line_search", halved)
+    monkeypatch.setattr(mod, "_INNER_DECREMENT", 0.0)  # only the step criterion could end the search
+    monkeypatch.setattr(mod, "_INNER_ITER", 40)
+    pt = profile_statistic(CAL, D3, PAIR, "k01", 0.1)
+    assert not pt.converged and pt.reason == "iteration limit"
+
+
+def test_backward_sweep_repairs_a_point_stuck_in_a_higher_valley(monkeypatch):
+    """The forward sweep may stay high; restarting from the outer neighbour must lower it."""
+    mod = sys.modules["atomic_information_lab.likelihood_profile"]
+    real = mod.profile_statistic
+    calls = {"n": 0}
+
+    def forward_stuck(truth, design, free, name, value, start=None):
+        pt = real(truth, design, free, name, value, start)
+        calls["n"] += 1
+        if calls["n"] == 3:  # the third forward point is reported 10 times too high
+            return mod.ProfilePoint(pt.value, pt.statistic * 10, pt.converged, pt.reason, pt.nuisance)
+        return pt
+
+    monkeypatch.setattr(mod, "profile_statistic", forward_stuck)
+    r = profile_likelihood(CAL, D3, PAIR, "k01")
+    monkeypatch.undo()
+    for p in r.points:
+        assert p.statistic == pytest.approx(profile_statistic(CAL, D3, PAIR, "k01", p.value).statistic, rel=1e-6)
+
+
 def test_public_export_is_the_module_function():
     assert public_profile_likelihood is profile_likelihood
 
@@ -369,12 +432,14 @@ def test_table_is_complete_and_its_figures_rest_on_converged_points():
         converged = [p[1] for p in row["points"] if p[2]]
         # a stuck point over-estimates the profile; it must not be what a plateau or threshold rests on
         assert max(row["low_plateau"], row["high_plateau"]) == max(converged)
-        for p in stuck:
-            assert p[1] > 1e3 * max(iv["sessions"] and 3.85 / iv["sessions"] for iv in row["intervals"])
+        for p in stuck:  # far from every interval threshold (the smallest is about 300 times above)
+            assert p[1] > 100 * max(CHI2_1_95 / iv["sessions"] for iv in row["intervals"])
         assert row["low_monotone"] and row["high_monotone"], row["name"]
         assert all(iv["bounded"] for iv in row["intervals"]), row["name"]
         assert row["sessions_scope"] == CRLB_TOKEN and row["pl_scope"] == PL_TOKEN
-    assert total == 1  # bias_flip = 0.381: read errors run to 0 and a back-action factor to infinity (N-40)
+    # R33: convergence counts only for full undamped steps, so 18 far points (values equal to R32 within
+    # 1e-9) are now reported as not converged; one of them (bias_flip = 0.381) has no attained minimum (N-40)
+    assert total == 18
 
 
 def test_post_hoc_the_two_most_non_quadratic_parameters_are_the_two_biased_ones():
@@ -410,3 +475,149 @@ def test_readme_table_matches_the_pinned_json():
         assert int(m.group(6).replace(" ", "")) == row["bounded_sessions"]
         seen += 1
     assert seen == len(rows)
+
+
+# ---------------------------------------------------------------- R33: intervals from OBSERVED counts
+def _sample(n, seed):
+    import random
+
+    from atomic_information_lab.estimation import sample_counts
+
+    return sample_counts(CAL, D3, n, random.Random(seed))
+
+
+START = CAL.with_values({"k01": 0.07 * 1.2, "backaction:precise": 3.5 * 1.2})
+
+
+@pytest.mark.parametrize("seed, name, value", [(7, "k01", 0.07), (8, "backaction:precise", 3.5), (9, "k01", 0.09)])
+def test_observed_lambda_equals_the_loglik_difference_of_two_mle_fits(seed, name, value):
+    """Two independent routes: KL on observed frequencies vs log-likelihoods of fit_mle (full and restricted)."""
+    from atomic_information_lab.estimation import fit_mle
+
+    counts = _sample(3000, seed)
+    lam, ok, not_global = likelihood_ratio_statistic(START, D3, PAIR, counts, name, value)
+    full = fit_mle(START, D3, PAIR, counts)
+    est = dict(zip(PAIR, full.values, strict=True))
+    other = next(f for f in PAIR if f != name)
+    restricted = fit_mle(CAL.with_values({other: est[other], name: value}), D3, (other,), counts)
+    assert ok and not not_global and restricted.converged
+    assert lam == pytest.approx(2 * (full.log_likelihood - restricted.log_likelihood), rel=1e-7, abs=1e-9)
+
+
+@pytest.mark.parametrize("seed", [7, 11])
+def test_observed_interval_end_points_sit_on_the_threshold(seed):
+    counts = _sample(3000, seed)
+    iv = likelihood_ratio_interval(START, D3, PAIR, counts, "k01")
+    assert iv.bounded and iv.low < iv.estimate < iv.high and iv.pl_scope == DATA_PL_SCOPE
+    for end in (iv.low, iv.high):
+        lam, ok, _ = likelihood_ratio_statistic(START, D3, PAIR, counts, "k01", end)
+        assert ok and lam == pytest.approx(CHI2_1_95, rel=2e-3)
+    assert likelihood_ratio_statistic(START, D3, PAIR, counts, "k01", iv.estimate)[0] == pytest.approx(0, abs=1e-6)
+
+
+def test_observed_interval_on_expected_counts_is_the_expected_profile_interval():
+    from atomic_information_lab.identifiability import outcome_distribution
+
+    n = 10**6
+    counts = {o: round(n * p) for o, p in outcome_distribution(CAL, D3).items()}
+    iv = likelihood_ratio_interval(START, D3, PAIR, counts, "k01")
+    ref = profile_likelihood(CAL, D3, PAIR, "k01", sessions=(sum(counts.values()),)).intervals[0]
+    assert iv.low == pytest.approx(ref.low, rel=2e-4) and iv.high == pytest.approx(ref.high, rel=2e-4)
+
+
+def test_observed_interval_fails_closed():
+    counts = _sample(3000, 7)
+    with pytest.raises(ValueError, match="not a free parameter"):
+        likelihood_ratio_interval(START, D3, PAIR, counts, "k10")
+    with pytest.raises(ValueError):
+        likelihood_ratio_interval(START, D3, PAIR, {(9, 9, 9, 9): 3}, "k01")
+    with pytest.raises(ValueError, match="positive"):
+        likelihood_ratio_statistic(START, D3, PAIR, counts, "k01", 0.0)
+
+
+# ---------------------------------------------------------------- R33: pre-registered falsification results
+RESULTS = ROOT / "docs" / "PL_FALSIFICATION_RESULTS.json"
+
+
+def test_falsification_results_follow_the_registered_rules():
+    d = json.loads(RESULTS.read_text(encoding="utf-8"))
+    assert d["replications"] == d["protocol_replications"] == 1000
+    assert d["provenance"]["bound_files_dirty"] is False
+    a = d["part_a"]
+    for run in a["runs"]:
+        assert run["A0_provenance"]["pass"] and run["A0_provenance"]["max_abs_deviation"] == 0.0
+        assert run["A1_lr_coverage_in_screen"] == all(0.93 <= p["lr_coverage"] <= 0.97 for p in run["parameters"])
+    b = d["part_b"]
+    verdict = (
+        "transferred"
+        if (b["B1_sign"]["pass"] and b["B2_effect_present_at_30894"] and b["B3_effect_absent_at_417942"])
+        else "not transferred"
+    )
+    assert b["N37_verdict"] == verdict == "not transferred"  # reported as such in FINDINGS N-43
+
+
+def test_wald_misses_one_sided_where_the_profile_is_skewed_and_lr_does_not():
+    """Finding N-42: two-sided Wald coverage looked nominal and hid one-sided misses."""
+    run = json.loads(RESULTS.read_text(encoding="utf-8"))["part_a"]["runs"][0]
+    assert run["sessions"] == 23_372
+    rows = {p["name"]: p for p in run["parameters"]}
+    for n in ("backaction:precise", "backaction:reference"):
+        p = rows[n]
+        assert p["wald_miss_truth_below"] == 0 and p["wald_miss_truth_above"] >= 36
+        assert min(p["lr_miss_truth_below"], p["lr_miss_truth_above"]) >= 19
+
+
+def test_cli_lr_interval_from_a_counts_file(tmp_path):
+    counts = _sample(3000, 7)
+    f = tmp_path / "counts.json"
+    f.write_text(json.dumps({",".join(map(str, o)): n for o, n in counts.items()}), encoding="utf-8")
+    args = ["lr-interval", "--design", "fast,reference,precise", "--known-write", "--free", "k01,backaction:precise"]
+    args += ["--param", "k01", "--counts", str(f), "--k01", "0.084", "--prep-error", "0.02"]
+    p = subprocess.run(
+        [sys.executable, "-m", "atomic_information_lab", *args],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=ENV,
+        timeout=600,
+    )
+    assert p.returncode == 0, p.stderr
+    data = json.loads(p.stdout)
+    row = data["lr_intervals"][0]
+    assert data["pl_scope"] == row["pl_scope"] == "OBSERVED_DATA_LIKELIHOOD_RATIO_WILKS_MODEL_INTERNAL"
+    assert row["bounded"] and row["low"] < row["estimate"] < row["high"] and "Wilks" in data["notes"][0]
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"1,x": 3}), encoding="utf-8")
+    q = subprocess.run(
+        [sys.executable, "-m", "atomic_information_lab", *args[:-6], "--param", "k01", "--counts", str(bad)],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=ENV,
+        timeout=120,
+    )
+    assert q.returncode == 2 and "bad outcome key" in q.stderr
+
+
+def test_protocol_above_deviations_and_predictions_are_the_bytes_the_run_saw():
+    """Pre-registration: the run recorded SHA-256 of protocol and predictions; only the outcome was appended."""
+    import hashlib
+
+    prov = json.loads(RESULTS.read_text(encoding="utf-8"))["provenance"]["sha256"]
+    proto = (ROOT / "docs" / "PL_FALSIFICATION_PROTOCOL.md").read_bytes().replace(b"\r\n", b"\n")
+    as_run = proto.split(b"## Deviations")[0] + b"## Deviations\n\nNone so far.\n"
+    assert hashlib.sha256(as_run).hexdigest() == prov["docs/PL_FALSIFICATION_PROTOCOL.md"]
+    pred = (ROOT / "docs" / "PL_TRANSFER_PREDICTIONS.json").read_bytes().replace(b"\r\n", b"\n")
+    assert hashlib.sha256(pred).hexdigest() == prov["docs/PL_TRANSFER_PREDICTIONS.json"]
+
+
+def test_multistart_benchmark_refutes_no_table_point():
+    """Finding N-45: random starts never beat the table (the benchmark ran against this very table)."""
+    ms = json.loads((ROOT / "docs" / "PL_MULTISTART.json").read_text(encoding="utf-8"))
+    assert ms["points"] == 40 and ms["inner_runs"] == 480 and ms["refuted_points"] == 0
+    assert ms["max_relative_improvement"] < ms["refute_threshold"] == 1e-6
+    table = {r["name"]: {p[0]: p[1] for p in r["points"]} for r in _table()["parameters"]}
+    for row in ms["rows"]:
+        assert table[row["name"]][row["value"]] == row["table_statistic"]

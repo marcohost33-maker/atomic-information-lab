@@ -99,6 +99,13 @@ def test_parameter_calibration_positional_construction_unchanged():
 # frozen evidence: the registered results file predates the field and is NOT rewritten.
 REGISTERED = "docs/ESTIMATOR_CALIBRATION_RESULTS.json"
 REGISTERED_SHA256 = "1dc62757d2df8714662549846693746d2365ba5bbfbb4195b204f55802f21308"
+# R33: the pre-registered predictions carry profile_to_crlb without sessions_scope (found by this very
+# test after the run); they are frozen evidence, pinned by the run's own provenance, and NOT rewritten.
+# scripts/pl_predict.py now writes the scope.
+FROZEN = {
+    REGISTERED: REGISTERED_SHA256,
+    "docs/PL_TRANSFER_PREDICTIONS.json": "56e01c87cb7ee3a1b164d4923b49a183a2f289234ea4ee003ea5ae8a6b440922",
+}
 
 
 def test_docs_json_carries_the_scope_except_the_pinned_registered_result():
@@ -109,12 +116,13 @@ def test_docs_json_carries_the_scope_except_the_pinned_registered_result():
         data = json.loads(f.read_text(encoding="utf-8"))
         missing = [p for p, o in _crlb_sites(data) if o.get("sessions_scope") != TOKEN]
         seen_sites += sum(1 for _ in _crlb_sites(data))
-        if f.relative_to(ROOT).as_posix() == REGISTERED:
-            # the one allowed exception is tamper-evident: its bytes are pinned -- as committed (LF);
+        rel = f.relative_to(ROOT).as_posix()
+        if rel in FROZEN:
+            # the allowed exceptions are tamper-evident: their bytes are pinned -- as committed (LF);
             # a Windows checkout with core.autocrlf turns them into CRLF, which is no content change
             canonical = f.read_bytes().replace(b"\r\n", b"\n")
-            assert hashlib.sha256(canonical).hexdigest() == REGISTERED_SHA256
-            assert missing, "control: the registered file is the known gap; if it has the scope, drop the exception"
+            assert hashlib.sha256(canonical).hexdigest() == FROZEN[rel]
+            assert missing, "control: a frozen file is a known gap; if it has the scope, drop the exception"
         else:
             assert missing == [], (f.name, missing[:3])
     assert seen_sites >= 40  # positive control: the walker finds the registered file's 40 sites
