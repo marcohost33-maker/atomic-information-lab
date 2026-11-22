@@ -1,0 +1,2251 @@
+{
+  "profile_likelihood": {
+    "design": [
+      "fast",
+      "reference",
+      "precise",
+      "reference",
+      "fast",
+      "precise"
+    ],
+    "known_write": true,
+    "free": [
+      "k01",
+      "k10",
+      "bias_flip",
+      "prep_error",
+      "bias_prior",
+      "error:fast",
+      "error:precise",
+      "error:reference",
+      "backaction:precise",
+      "backaction:reference"
+    ],
+    "sessions": [
+      373950,
+      23372
+    ],
+    "parameters": [
+      {
+        "name": "k01",
+        "true_value": 0.07,
+        "target_rse": 0.1,
+        "crlb_rse": 21.55243722371153,
+        "crlb_sessions": 46451,
+        "profile_sessions": 46658,
+        "profile_to_crlb": 1.0044557355382127,
+        "asymmetry": 0.9911413323545248,
+        "low_plateau": 0.0022470706579503117,
+        "high_plateau": 0.8441256654675845,
+        "bounded_sessions": 1710,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          6.835937499999334e-05,
+          4.475693359375001
+        ],
+        "not_converged": 1,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.06517169189453126,
+            "high": 0.07484326171875,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.05077563476562501,
+            "high": 0.08946191406250001,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            6.835937499999334e-05,
+            0.0022470706579503117,
+            true
+          ],
+          [
+            0.00013671875000000056,
+            0.002242581435153047,
+            true
+          ],
+          [
+            0.0002734375000000011,
+            0.0022336170285764544,
+            true
+          ],
+          [
+            0.0005468750000000022,
+            0.0022157443558857575,
+            true
+          ],
+          [
+            0.0010937500000000044,
+            0.002180223447888124,
+            true
+          ],
+          [
+            0.002187499999999995,
+            0.002110078383886756,
+            true
+          ],
+          [
+            0.004375000000000004,
+            0.0019733672560654195,
+            true
+          ],
+          [
+            0.00875,
+            0.001714196546516586,
+            true
+          ],
+          [
+            0.0175,
+            0.001252340806733314,
+            true
+          ],
+          [
+            0.035,
+            0.0005503690255786715,
+            true
+          ],
+          [
+            0.042,
+            0.00035065865752107985,
+            true
+          ],
+          [
+            0.05600000000000001,
+            8.688363602762231e-05,
+            true
+          ],
+          [
+            0.063,
+            2.162423896861699e-05,
+            true
+          ],
+          [
+            0.0665,
+            5.39403341536857e-06,
+            true
+          ],
+          [
+            0.06825,
+            1.3470085291012013e-06,
+            true
+          ],
+          [
+            0.07175000000000001,
+            1.3440156025543952e-06,
+            true
+          ],
+          [
+            0.07350000000000001,
+            5.370089636120536e-06,
+            true
+          ],
+          [
+            0.07700000000000001,
+            2.143267702250768e-05,
+            true
+          ],
+          [
+            0.084,
+            8.535076923330038e-05,
+            true
+          ],
+          [
+            0.098,
+            0.0003445561813284689,
+            true
+          ],
+          [
+            0.126,
+            0.0030936369752957798,
+            true
+          ],
+          [
+            0.18200000000000002,
+            0.019486391765564402,
+            true
+          ],
+          [
+            0.29400000000000004,
+            0.07797185489279228,
+            true
+          ],
+          [
+            0.518,
+            0.2286114652537246,
+            true
+          ],
+          [
+            0.9660000000000002,
+            0.5034016348531016,
+            true
+          ],
+          [
+            1.8620000000000003,
+            0.77797663614903,
+            true
+          ],
+          [
+            2.275,
+            0.8150117593487222,
+            false
+          ],
+          [
+            3.3775,
+            0.8407758334319957,
+            true
+          ],
+          [
+            3.92875,
+            0.8432304746413078,
+            true
+          ],
+          [
+            4.204375000000001,
+            0.8437902318122017,
+            true
+          ],
+          [
+            4.3421875000000005,
+            0.8439810781474774,
+            true
+          ],
+          [
+            4.41109375,
+            0.8440600553074247,
+            true
+          ],
+          [
+            4.445546875000001,
+            0.8440960001722265,
+            true
+          ],
+          [
+            4.4627734375,
+            0.84411314959903,
+            true
+          ],
+          [
+            4.471386718750001,
+            0.8441215259708155,
+            true
+          ],
+          [
+            4.475693359375001,
+            0.8441256654675845,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "k10",
+        "true_value": 0.045,
+        "target_rse": 0.1,
+        "crlb_rse": 22.726163304815113,
+        "crlb_sessions": 51648,
+        "profile_sessions": 52443,
+        "profile_to_crlb": 1.015376813832524,
+        "asymmetry": 0.9697717976358914,
+        "low_plateau": 0.0022468823037232427,
+        "high_plateau": 0.8421136756974057,
+        "bounded_sessions": 1710,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          4.3945312500001665e-05,
+          2.8772314453125
+        ],
+        "not_converged": 2,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.0417403564453125,
+            "high": 0.04829644775390625,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.032175659179687496,
+            "high": 0.05840881347656249,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            4.3945312500001665e-05,
+            0.0022468823037232427,
+            true
+          ],
+          [
+            8.789062500000333e-05,
+            0.002242205311378567,
+            true
+          ],
+          [
+            0.00017578124999999972,
+            0.002232867120482463,
+            true
+          ],
+          [
+            0.00035156249999999944,
+            0.0022142539037225744,
+            true
+          ],
+          [
+            0.0007031249999999989,
+            0.002177280044920195,
+            true
+          ],
+          [
+            0.0014062499999999978,
+            0.002104341875785914,
+            true
+          ],
+          [
+            0.0028125000000000025,
+            0.0019624966710274014,
+            true
+          ],
+          [
+            0.005624999999999998,
+            0.0016948581057761323,
+            true
+          ],
+          [
+            0.011249999999999996,
+            0.0012229715499411048,
+            true
+          ],
+          [
+            0.0225,
+            0.0005232672734380304,
+            true
+          ],
+          [
+            0.027,
+            0.0003297086954964747,
+            true
+          ],
+          [
+            0.036,
+            7.988626278505492e-05,
+            true
+          ],
+          [
+            0.0405,
+            1.966305353863903e-05,
+            true
+          ],
+          [
+            0.042749999999999996,
+            4.877877492718564e-06,
+            true
+          ],
+          [
+            0.043875,
+            1.2147784445662652e-06,
+            true
+          ],
+          [
+            0.046125,
+            1.20548895020634e-06,
+            true
+          ],
+          [
+            0.04725,
+            4.803565245313918e-06,
+            true
+          ],
+          [
+            0.049499999999999995,
+            1.9068674777176746e-05,
+            true
+          ],
+          [
+            0.054,
+            7.513512161719371e-05,
+            true
+          ],
+          [
+            0.063,
+            0.00029183341236707427,
+            true
+          ],
+          [
+            0.08099999999999999,
+            0.002416470925491083,
+            true
+          ],
+          [
+            0.11699999999999999,
+            0.014415390729285476,
+            true
+          ],
+          [
+            0.189,
+            0.056341158115304546,
+            true
+          ],
+          [
+            0.33299999999999996,
+            0.16781921442212483,
+            true
+          ],
+          [
+            0.621,
+            0.38320519890847654,
+            true
+          ],
+          [
+            1.1969999999999998,
+            0.6863064539893281,
+            true
+          ],
+          [
+            1.4625,
+            0.7571413345551022,
+            true
+          ],
+          [
+            2.1712499999999997,
+            0.8309831378746735,
+            true
+          ],
+          [
+            2.525625,
+            0.8389643364818556,
+            false
+          ],
+          [
+            2.7028125,
+            0.8408668945463378,
+            false
+          ],
+          [
+            2.79140625,
+            0.8415625952423735,
+            true
+          ],
+          [
+            2.8357031249999998,
+            0.8418606055514932,
+            true
+          ],
+          [
+            2.8578515625,
+            0.8419985840074954,
+            true
+          ],
+          [
+            2.8689257812499998,
+            0.8420649786900083,
+            true
+          ],
+          [
+            2.874462890625,
+            0.8420975466864693,
+            true
+          ],
+          [
+            2.8772314453125,
+            0.8421136756974057,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "bias_flip",
+        "true_value": 0.025,
+        "target_rse": 0.1,
+        "crlb_rse": 6.8609913637285675,
+        "crlb_sessions": 4708,
+        "profile_sessions": 4867,
+        "profile_to_crlb": 1.033776261556721,
+        "asymmetry": 0.934488028949814,
+        "low_plateau": 0.03215504446362654,
+        "high_plateau": 2.014670837346779,
+        "bounded_sessions": 120,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          2.4414062499998612e-05,
+          0.4995361328125
+        ],
+        "not_converged": 3,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.024452285766601564,
+            "high": 0.025551834106445313,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.02283355712890625,
+            "high": 0.027232055664062504,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            2.4414062499998612e-05,
+            0.03215504446362654,
+            true
+          ],
+          [
+            4.8828125000000694e-05,
+            0.03207714368992275,
+            true
+          ],
+          [
+            9.765625000000139e-05,
+            0.031921716686829374,
+            true
+          ],
+          [
+            0.0001953124999999993,
+            0.03161235923544215,
+            true
+          ],
+          [
+            0.0003906249999999986,
+            0.030999616871565275,
+            true
+          ],
+          [
+            0.0007812500000000007,
+            0.02979790230233584,
+            true
+          ],
+          [
+            0.0015625000000000014,
+            0.027488445347131067,
+            true
+          ],
+          [
+            0.0031249999999999993,
+            0.023234750528453352,
+            true
+          ],
+          [
+            0.006249999999999999,
+            0.01608760580309208,
+            true
+          ],
+          [
+            0.0125,
+            0.006404097326852318,
+            true
+          ],
+          [
+            0.015,
+            0.003936222114201168,
+            true
+          ],
+          [
+            0.02,
+            0.0009117801736795545,
+            true
+          ],
+          [
+            0.0225,
+            0.0002199003684598853,
+            true
+          ],
+          [
+            0.02375,
+            5.402471345137901e-05,
+            true
+          ],
+          [
+            0.024375,
+            1.3390636259170767e-05,
+            true
+          ],
+          [
+            0.025625000000000002,
+            1.3165797061438886e-05,
+            true
+          ],
+          [
+            0.026250000000000002,
+            5.222558988875684e-05,
+            true
+          ],
+          [
+            0.027500000000000004,
+            0.00020549426188741604,
+            true
+          ],
+          [
+            0.030000000000000002,
+            0.000796111750581146,
+            true
+          ],
+          [
+            0.035,
+            0.0029974970492367206,
+            true
+          ],
+          [
+            0.045000000000000005,
+            0.010750847750680224,
+            true
+          ],
+          [
+            0.065,
+            0.03583827576398956,
+            true
+          ],
+          [
+            0.10500000000000001,
+            0.11168546620656374,
+            false
+          ],
+          [
+            0.18500000000000003,
+            0.3470727470981268,
+            false
+          ],
+          [
+            0.2625,
+            0.6418798664110199,
+            true
+          ],
+          [
+            0.38125,
+            1.2065933769859611,
+            false
+          ],
+          [
+            0.440625,
+            1.5526240576733137,
+            true
+          ],
+          [
+            0.4703125,
+            1.7688397873296295,
+            true
+          ],
+          [
+            0.48515625,
+            1.889539570093206,
+            true
+          ],
+          [
+            0.492578125,
+            1.9531039051128056,
+            true
+          ],
+          [
+            0.4962890625,
+            1.9857002378616462,
+            true
+          ],
+          [
+            0.49814453125,
+            2.0022034088636667,
+            true
+          ],
+          [
+            0.499072265625,
+            2.01050643759063,
+            true
+          ],
+          [
+            0.4995361328125,
+            2.014670837346779,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "prep_error",
+        "true_value": 0.02,
+        "target_rse": 0.1,
+        "crlb_rse": 61.15139290616914,
+        "crlb_sessions": 373950,
+        "profile_sessions": 376115,
+        "profile_to_crlb": 1.0057890401556622,
+        "asymmetry": 1.0116077103900836,
+        "low_plateau": 0.0002519242069229905,
+        "high_plateau": 0.4781383234233801,
+        "bounded_sessions": 15249,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          1.9531249999999584e-05,
+          0.49953125
+        ],
+        "not_converged": 1,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.0160576171875,
+            "high": 0.023898193359375,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.0039514160156250006,
+            "high": 0.03533789062500001,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            1.9531249999999584e-05,
+            0.0002519242069229905,
+            true
+          ],
+          [
+            3.906249999999917e-05,
+            0.00025144610580465866,
+            true
+          ],
+          [
+            7.812499999999833e-05,
+            0.00025049118417911167,
+            true
+          ],
+          [
+            0.00015625000000000014,
+            0.00024858646550921664,
+            true
+          ],
+          [
+            0.0003125000000000003,
+            0.00024479754359628766,
+            true
+          ],
+          [
+            0.0006250000000000006,
+            0.00023730189843622481,
+            true
+          ],
+          [
+            0.0012500000000000011,
+            0.00022264050069159465,
+            true
+          ],
+          [
+            0.0024999999999999988,
+            0.00019464609470237293,
+            true
+          ],
+          [
+            0.005000000000000001,
+            0.00014404196610710648,
+            true
+          ],
+          [
+            0.01,
+            6.495049858015566e-05,
+            true
+          ],
+          [
+            0.012,
+            4.180929776226063e-05,
+            true
+          ],
+          [
+            0.016,
+            1.0573825579473563e-05,
+            true
+          ],
+          [
+            0.018000000000000002,
+            2.6587676956741096e-06,
+            true
+          ],
+          [
+            0.019,
+            6.666134001389971e-07,
+            true
+          ],
+          [
+            0.0195,
+            1.6689400184326917e-07,
+            true
+          ],
+          [
+            0.0205,
+            1.6737623199530005e-07,
+            true
+          ],
+          [
+            0.021,
+            6.704712282472722e-07,
+            true
+          ],
+          [
+            0.022,
+            2.6896299010800044e-06,
+            true
+          ],
+          [
+            0.024,
+            1.0820709799798136e-05,
+            true
+          ],
+          [
+            0.028,
+            4.378394196198633e-05,
+            true
+          ],
+          [
+            0.036000000000000004,
+            0.00017919827807237593,
+            true
+          ],
+          [
+            0.052000000000000005,
+            0.0007500183364632303,
+            true
+          ],
+          [
+            0.084,
+            0.0033385499584701263,
+            true
+          ],
+          [
+            0.148,
+            0.027181034704638646,
+            true
+          ],
+          [
+            0.26,
+            0.11968269818238803,
+            true
+          ],
+          [
+            0.38,
+            0.27283190532310403,
+            true
+          ],
+          [
+            0.44,
+            0.36954984267413504,
+            true
+          ],
+          [
+            0.47,
+            0.42314665835041787,
+            true
+          ],
+          [
+            0.485,
+            0.45129543994958227,
+            false
+          ],
+          [
+            0.4925,
+            0.4654576191195695,
+            true
+          ],
+          [
+            0.49625,
+            0.47229413774123785,
+            true
+          ],
+          [
+            0.498125,
+            0.47564920736873023,
+            true
+          ],
+          [
+            0.4990625,
+            0.47731118956361224,
+            true
+          ],
+          [
+            0.49953125,
+            0.4781383234233801,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "bias_prior",
+        "true_value": 0.5,
+        "target_rse": 0.1,
+        "crlb_rse": 1.1280015341000216,
+        "crlb_sessions": 128,
+        "profile_sessions": 128,
+        "profile_to_crlb": 0.9987266430304798,
+        "asymmetry": 1.0000000000000002,
+        "low_plateau": 0.6876991748165674,
+        "high_plateau": 0.687699174816157,
+        "bounded_sessions": 6,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          0.00048828125,
+          0.99951171875
+        ],
+        "not_converged": 2,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.49819231033325195,
+            "high": 0.5018076896667479,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.4927692413330078,
+            "high": 0.5072307586669923,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            0.00048828125,
+            0.6876991748165674,
+            true
+          ],
+          [
+            0.0009765625,
+            0.6867161318710848,
+            true
+          ],
+          [
+            0.001953125,
+            0.6847483917720641,
+            true
+          ],
+          [
+            0.00390625,
+            0.6808063564824636,
+            true
+          ],
+          [
+            0.0078125,
+            0.6728965775296853,
+            true
+          ],
+          [
+            0.015625,
+            0.6569785810615487,
+            true
+          ],
+          [
+            0.03125,
+            0.6247891014588881,
+            true
+          ],
+          [
+            0.0625,
+            0.5594071585510142,
+            true
+          ],
+          [
+            0.125,
+            0.4290278201558743,
+            true
+          ],
+          [
+            0.25,
+            0.19881902620620107,
+            true
+          ],
+          [
+            0.3,
+            0.12732557013583676,
+            true
+          ],
+          [
+            0.4,
+            0.031585618857351956,
+            true
+          ],
+          [
+            0.45,
+            0.007869261614236414,
+            true
+          ],
+          [
+            0.475,
+            0.001965447662613676,
+            true
+          ],
+          [
+            0.4875,
+            0.0004912425835903996,
+            true
+          ],
+          [
+            0.5125,
+            0.0004912425835903971,
+            true
+          ],
+          [
+            0.525,
+            0.0019654476626136757,
+            true
+          ],
+          [
+            0.55,
+            0.007869261614236416,
+            true
+          ],
+          [
+            0.6,
+            0.03158561885735193,
+            true
+          ],
+          [
+            0.7,
+            0.12732557013583679,
+            true
+          ],
+          [
+            0.75,
+            0.19881902620620112,
+            true
+          ],
+          [
+            0.875,
+            0.4290278201557943,
+            false
+          ],
+          [
+            0.9375,
+            0.5594071585510766,
+            false
+          ],
+          [
+            0.96875,
+            0.6247891014589098,
+            true
+          ],
+          [
+            0.984375,
+            0.6569785810615474,
+            true
+          ],
+          [
+            0.9921875,
+            0.6728965775297061,
+            true
+          ],
+          [
+            0.99609375,
+            0.6808063564826943,
+            true
+          ],
+          [
+            0.998046875,
+            0.6847483917720235,
+            true
+          ],
+          [
+            0.9990234375,
+            0.6867161318715126,
+            true
+          ],
+          [
+            0.99951171875,
+            0.687699174816157,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "error:fast",
+        "true_value": 0.12,
+        "target_rse": 0.1,
+        "crlb_rse": 2.949132966086156,
+        "crlb_sessions": 870,
+        "profile_sessions": 891,
+        "profile_to_crlb": 1.0240748510913922,
+        "asymmetry": 0.9538195977775997,
+        "low_plateau": 0.1206717253404891,
+        "high_plateau": 0.8044815059350996,
+        "bounded_sessions": 32,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          0.00011718750000000444,
+          0.49962890625
+        ],
+        "not_converged": 2,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.118866943359375,
+            "high": 0.12113562011718748,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.11548278808593748,
+            "high": 0.124557861328125,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            0.00011718750000000444,
+            0.1206717253404891,
+            true
+          ],
+          [
+            0.000234374999999995,
+            0.12047580665048796,
+            true
+          ],
+          [
+            0.0004687500000000039,
+            0.12008389621506935,
+            true
+          ],
+          [
+            0.0009374999999999939,
+            0.11929979951414187,
+            true
+          ],
+          [
+            0.0018750000000000017,
+            0.11773063535750553,
+            true
+          ],
+          [
+            0.0037500000000000033,
+            0.11458950337225417,
+            true
+          ],
+          [
+            0.007500000000000007,
+            0.10830494272044103,
+            true
+          ],
+          [
+            0.015,
+            0.09580183915066427,
+            true
+          ],
+          [
+            0.03,
+            0.07169593448741453,
+            true
+          ],
+          [
+            0.06,
+            0.03172426608697692,
+            true
+          ],
+          [
+            0.072,
+            0.020031455921967152,
+            true
+          ],
+          [
+            0.096,
+            0.0048162092624067804,
+            true
+          ],
+          [
+            0.108,
+            0.0011770999734207416,
+            true
+          ],
+          [
+            0.11399999999999999,
+            0.000290858152800804,
+            true
+          ],
+          [
+            0.11699999999999999,
+            7.228725100049221e-05,
+            true
+          ],
+          [
+            0.123,
+            7.143535453756057e-05,
+            true
+          ],
+          [
+            0.126,
+            0.0002840470096119102,
+            true
+          ],
+          [
+            0.132,
+            0.0011227410231921951,
+            true
+          ],
+          [
+            0.144,
+            0.004385669096297872,
+            true
+          ],
+          [
+            0.16799999999999998,
+            0.016747070787047364,
+            true
+          ],
+          [
+            0.216,
+            0.06144214332904375,
+            true
+          ],
+          [
+            0.31,
+            0.2112647751436334,
+            false
+          ],
+          [
+            0.405,
+            0.4562062983662541,
+            false
+          ],
+          [
+            0.4525,
+            0.6178281694482984,
+            true
+          ],
+          [
+            0.47625,
+            0.7086774510765407,
+            true
+          ],
+          [
+            0.488125,
+            0.7565997949698006,
+            true
+          ],
+          [
+            0.4940625,
+            0.7811783320559529,
+            true
+          ],
+          [
+            0.49703125,
+            0.7936177710151688,
+            true
+          ],
+          [
+            0.498515625,
+            0.7998344642585324,
+            true
+          ],
+          [
+            0.4992578125,
+            0.8029338921989955,
+            true
+          ],
+          [
+            0.49962890625,
+            0.8044815059350996,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "error:precise",
+        "true_value": 0.035,
+        "target_rse": 0.1,
+        "crlb_rse": 13.129696372513234,
+        "crlb_sessions": 17239,
+        "profile_sessions": 17324,
+        "profile_to_crlb": 1.0049237771246224,
+        "asymmetry": 0.9907318835993622,
+        "low_plateau": 0.005878628020341908,
+        "high_plateau": 0.7549281820094588,
+        "bounded_sessions": 654,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          3.417968749999667e-05,
+          0.49954589843749997
+        ],
+        "not_converged": 2,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.03352845764160157,
+            "high": 0.03647442626953125,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.029129211425781256,
+            "high": 0.04091693115234375,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            3.417968749999667e-05,
+            0.005878628020341908,
+            true
+          ],
+          [
+            6.835937500000028e-05,
+            0.005867227621053933,
+            true
+          ],
+          [
+            0.00013671875000000056,
+            0.005844456514467994,
+            true
+          ],
+          [
+            0.0002734375000000011,
+            0.005799033287211389,
+            true
+          ],
+          [
+            0.0005468750000000022,
+            0.005708664512342624,
+            true
+          ],
+          [
+            0.0010937499999999975,
+            0.005529851444580068,
+            true
+          ],
+          [
+            0.002187500000000002,
+            0.0051800313017558415,
+            true
+          ],
+          [
+            0.004375,
+            0.004512445305311686,
+            true
+          ],
+          [
+            0.00875,
+            0.0033115451322739335,
+            true
+          ],
+          [
+            0.0175,
+            0.0014716033021901275,
+            true
+          ],
+          [
+            0.021,
+            0.0009406828399484121,
+            true
+          ],
+          [
+            0.028000000000000004,
+            0.00023393980006390205,
+            true
+          ],
+          [
+            0.0315,
+            5.826414426392249e-05,
+            true
+          ],
+          [
+            0.03325,
+            1.4535050943993177e-05,
+            true
+          ],
+          [
+            0.034125,
+            3.6297013363436065e-06,
+            true
+          ],
+          [
+            0.035875000000000004,
+            3.621233538391286e-06,
+            true
+          ],
+          [
+            0.036750000000000005,
+            1.4467357075243259e-05,
+            true
+          ],
+          [
+            0.038500000000000006,
+            5.7724145392900896e-05,
+            true
+          ],
+          [
+            0.042,
+            0.0002296694227299578,
+            true
+          ],
+          [
+            0.049,
+            0.0009080996401361327,
+            true
+          ],
+          [
+            0.063,
+            0.003542441205997591,
+            true
+          ],
+          [
+            0.09100000000000001,
+            0.013486657313894305,
+            true
+          ],
+          [
+            0.14700000000000002,
+            0.05036462769947646,
+            false
+          ],
+          [
+            0.259,
+            0.18210628148127653,
+            true
+          ],
+          [
+            0.26749999999999996,
+            0.19515486283257782,
+            false
+          ],
+          [
+            0.38375000000000004,
+            0.4285612607186175,
+            true
+          ],
+          [
+            0.441875,
+            0.581198171688384,
+            true
+          ],
+          [
+            0.4709375,
+            0.666077843836404,
+            true
+          ],
+          [
+            0.48546875,
+            0.7105888834475352,
+            true
+          ],
+          [
+            0.49273437499999995,
+            0.733332091957894,
+            true
+          ],
+          [
+            0.4963671875,
+            0.7448182176944541,
+            true
+          ],
+          [
+            0.49818359375,
+            0.7505886789139197,
+            true
+          ],
+          [
+            0.49909179687499994,
+            0.7534805840641984,
+            true
+          ],
+          [
+            0.49954589843749997,
+            0.7549281820094588,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "error:reference",
+        "true_value": 0.025,
+        "target_rse": 0.1,
+        "crlb_rse": 7.001401098231999,
+        "crlb_sessions": 4902,
+        "profile_sessions": 5075,
+        "profile_to_crlb": 1.035141366883389,
+        "asymmetry": 0.9320269507974599,
+        "low_plateau": 0.030353763930834405,
+        "high_plateau": 1.2735191909830836,
+        "bounded_sessions": 127,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          2.4414062499998612e-05,
+          0.4995361328125
+        ],
+        "not_converged": 5,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.024441184997558596,
+            "high": 0.02556324005126953,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.022791137695312498,
+            "high": 0.027279815673828128,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            2.4414062499998612e-05,
+            0.030353763930834405,
+            true
+          ],
+          [
+            4.8828125000000694e-05,
+            0.030283559845216343,
+            true
+          ],
+          [
+            9.765625000000139e-05,
+            0.030143428065564144,
+            true
+          ],
+          [
+            0.0001953124999999993,
+            0.02986427143613681,
+            true
+          ],
+          [
+            0.0003906249999999986,
+            0.029310396254440173,
+            true
+          ],
+          [
+            0.0007812500000000007,
+            0.028220472406310128,
+            true
+          ],
+          [
+            0.0015625000000000014,
+            0.026112388245507906,
+            true
+          ],
+          [
+            0.0031249999999999993,
+            0.02218486220087264,
+            true
+          ],
+          [
+            0.006249999999999999,
+            0.015468691076537991,
+            true
+          ],
+          [
+            0.0125,
+            0.006183491279686236,
+            true
+          ],
+          [
+            0.015,
+            0.0037980568047489617,
+            true
+          ],
+          [
+            0.02,
+            0.0008778533995078589,
+            true
+          ],
+          [
+            0.0225,
+            0.00021144720465431487,
+            true
+          ],
+          [
+            0.02375,
+            5.191385622333707e-05,
+            true
+          ],
+          [
+            0.024375,
+            1.2863188967685235e-05,
+            true
+          ],
+          [
+            0.025625000000000002,
+            1.2638843783185738e-05,
+            true
+          ],
+          [
+            0.026250000000000002,
+            5.011872870113555e-05,
+            true
+          ],
+          [
+            0.027500000000000004,
+            0.00019707449340860755,
+            true
+          ],
+          [
+            0.030000000000000002,
+            0.0007625005690017439,
+            true
+          ],
+          [
+            0.035,
+            0.002863794836993675,
+            true
+          ],
+          [
+            0.045000000000000005,
+            0.010225780940744365,
+            true
+          ],
+          [
+            0.065,
+            0.033890828520245525,
+            true
+          ],
+          [
+            0.10500000000000001,
+            0.1028343486607075,
+            true
+          ],
+          [
+            0.18500000000000003,
+            0.2917374933474214,
+            true
+          ],
+          [
+            0.2625,
+            0.4960654474053335,
+            false
+          ],
+          [
+            0.38125,
+            0.8501299354998266,
+            true
+          ],
+          [
+            0.440625,
+            1.053470846781082,
+            false
+          ],
+          [
+            0.4703125,
+            1.1630239272979406,
+            false
+          ],
+          [
+            0.48515625,
+            1.2196923877896877,
+            false
+          ],
+          [
+            0.492578125,
+            1.2483522037222632,
+            false
+          ],
+          [
+            0.4962890625,
+            1.2621143657617213,
+            true
+          ],
+          [
+            0.49814453125,
+            1.2687171380126634,
+            true
+          ],
+          [
+            0.499072265625,
+            1.271932503844264,
+            true
+          ],
+          [
+            0.4995361328125,
+            1.2735191909830836,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "backaction:precise",
+        "true_value": 3.5,
+        "target_rse": 0.1,
+        "crlb_rse": 19.34986592138353,
+        "crlb_sessions": 37442,
+        "profile_sessions": 45971,
+        "profile_to_crlb": 1.2277748630922154,
+        "asymmetry": 0.6482516989607122,
+        "low_plateau": 0.06541738352945971,
+        "high_plateau": 0.002187914730595967,
+        "bounded_sessions": 1756,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          0.00341796875,
+          223.78466796875
+        ],
+        "not_converged": 0,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 3.29654541015625,
+            "high": 3.7326568603515624,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 2.8148254394531254,
+            "high": 4.68680419921875,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            0.00341796875,
+            0.06541738352945971,
+            true
+          ],
+          [
+            0.0068359375,
+            0.06541738352945639,
+            true
+          ],
+          [
+            0.013671875,
+            0.06541738352944969,
+            true
+          ],
+          [
+            0.02734375,
+            0.06541738352943635,
+            true
+          ],
+          [
+            0.0546875,
+            0.06541738352940964,
+            true
+          ],
+          [
+            0.109375,
+            0.06541738352935622,
+            true
+          ],
+          [
+            0.21875,
+            0.06541738352924932,
+            true
+          ],
+          [
+            0.4375,
+            0.06159379771581488,
+            true
+          ],
+          [
+            0.875,
+            0.03717820112272998,
+            true
+          ],
+          [
+            1.75,
+            0.0061290388105773395,
+            true
+          ],
+          [
+            2.0999999999999996,
+            0.002214124740695914,
+            true
+          ],
+          [
+            2.8,
+            0.00017357142229258824,
+            true
+          ],
+          [
+            3.15,
+            3.355688801745904e-05,
+            true
+          ],
+          [
+            3.325,
+            7.460436390377108e-06,
+            true
+          ],
+          [
+            3.4125,
+            1.763135601617501e-06,
+            true
+          ],
+          [
+            3.5875,
+            1.5826522833211071e-06,
+            true
+          ],
+          [
+            3.675,
+            6.010333484287334e-06,
+            true
+          ],
+          [
+            3.85,
+            2.1753309669152188e-05,
+            true
+          ],
+          [
+            4.2,
+            7.222153948223899e-05,
+            true
+          ],
+          [
+            4.9,
+            0.00020812569361261854,
+            true
+          ],
+          [
+            6.300000000000001,
+            0.0004903885563379988,
+            true
+          ],
+          [
+            9.100000000000001,
+            0.0009130177502547827,
+            true
+          ],
+          [
+            14.700000000000001,
+            0.0013641216562779016,
+            true
+          ],
+          [
+            25.900000000000002,
+            0.0017258076368639856,
+            true
+          ],
+          [
+            48.300000000000004,
+            0.00196272989147591,
+            true
+          ],
+          [
+            93.10000000000001,
+            0.002099774549067448,
+            true
+          ],
+          [
+            113.75,
+            0.0021270223839924968,
+            true
+          ],
+          [
+            168.875,
+            0.002167372214692952,
+            true
+          ],
+          [
+            196.4375,
+            0.0021791100307401953,
+            true
+          ],
+          [
+            210.21875,
+            0.002183831655881417,
+            true
+          ],
+          [
+            217.109375,
+            0.002185968993917442,
+            true
+          ],
+          [
+            220.5546875,
+            0.0021869878680677137,
+            true
+          ],
+          [
+            222.27734375,
+            0.0021874855279056223,
+            true
+          ],
+          [
+            223.138671875,
+            0.002187731492606519,
+            true
+          ],
+          [
+            223.5693359375,
+            0.0021878537682599552,
+            true
+          ],
+          [
+            223.78466796875,
+            0.002187914730595967,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      },
+      {
+        "name": "backaction:reference",
+        "true_value": 0.55,
+        "target_rse": 0.1,
+        "crlb_rse": 53.876547870483314,
+        "crlb_sessions": 290269,
+        "profile_sessions": 312114,
+        "profile_to_crlb": 1.0752574304402012,
+        "asymmetry": 0.8628883813537913,
+        "low_plateau": 0.0009025583721632934,
+        "high_plateau": 0.0020877761418935385,
+        "bounded_sessions": 4257,
+        "flat": false,
+        "low_monotone": true,
+        "high_monotone": true,
+        "low_dip": null,
+        "high_dip": null,
+        "scan": [
+          0.0005371093749999556,
+          35.166162109375
+        ],
+        "not_converged": 0,
+        "intervals": [
+          {
+            "sessions": 373950,
+            "level": 0.95,
+            "low": 0.46068542480468755,
+            "high": 0.6514599609375,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          },
+          {
+            "sessions": 23372,
+            "level": 0.95,
+            "low": 0.2460968017578125,
+            "high": 1.0626171875000003,
+            "bounded": true,
+            "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+            "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY"
+          }
+        ],
+        "points": [
+          [
+            0.0005371093749999556,
+            0.0009025583721632934,
+            true
+          ],
+          [
+            0.0010742187500000222,
+            0.0008994254273609796,
+            true
+          ],
+          [
+            0.0021484375000000444,
+            0.0008931859172709223,
+            true
+          ],
+          [
+            0.004296874999999978,
+            0.0008808121605911773,
+            true
+          ],
+          [
+            0.008593749999999956,
+            0.0008564836682602861,
+            true
+          ],
+          [
+            0.017187500000000022,
+            0.0008094865606555925,
+            true
+          ],
+          [
+            0.034375000000000044,
+            0.0007220031361592379,
+            true
+          ],
+          [
+            0.06874999999999998,
+            0.0005720656431022022,
+            true
+          ],
+          [
+            0.1375,
+            0.00036279511577562846,
+            true
+          ],
+          [
+            0.275,
+            0.000128538277485731,
+            true
+          ],
+          [
+            0.33,
+            7.552433860458792e-05,
+            true
+          ],
+          [
+            0.44000000000000006,
+            1.6047143873120646e-05,
+            true
+          ],
+          [
+            0.49500000000000005,
+            3.713072294037768e-06,
+            true
+          ],
+          [
+            0.5225000000000001,
+            8.938738514088615e-07,
+            true
+          ],
+          [
+            0.53625,
+            2.1933911538130604e-07,
+            true
+          ],
+          [
+            0.5637500000000001,
+            2.1140179828944647e-07,
+            true
+          ],
+          [
+            0.5775,
+            8.303474151567008e-07,
+            true
+          ],
+          [
+            0.6050000000000001,
+            3.2039669416518583e-06,
+            true
+          ],
+          [
+            0.66,
+            1.1945559283183596e-05,
+            true
+          ],
+          [
+            0.77,
+            4.177413644663243e-05,
+            true
+          ],
+          [
+            0.9900000000000001,
+            0.00013060158904240965,
+            true
+          ],
+          [
+            1.4300000000000002,
+            0.0003427707189081285,
+            true
+          ],
+          [
+            2.3100000000000005,
+            0.0007154569729351906,
+            true
+          ],
+          [
+            4.07,
+            0.0011761618057172158,
+            true
+          ],
+          [
+            7.590000000000001,
+            0.001588513641201095,
+            true
+          ],
+          [
+            14.630000000000003,
+            0.0018782342348618998,
+            true
+          ],
+          [
+            17.875000000000004,
+            0.0019409613707263513,
+            true
+          ],
+          [
+            26.537500000000005,
+            0.0020371983652113946,
+            true
+          ],
+          [
+            30.868750000000006,
+            0.0020659649719903302,
+            true
+          ],
+          [
+            33.034375000000004,
+            0.002077636502863367,
+            true
+          ],
+          [
+            34.1171875,
+            0.0020829388287009224,
+            true
+          ],
+          [
+            34.65859375,
+            0.0020854706334706456,
+            true
+          ],
+          [
+            34.929296875000006,
+            0.0020867082512300234,
+            true
+          ],
+          [
+            35.064648437500004,
+            0.0020873201724844513,
+            true
+          ],
+          [
+            35.13232421875,
+            0.002087624433521801,
+            true
+          ],
+          [
+            35.166162109375,
+            0.0020877761418935385,
+            true
+          ]
+        ],
+        "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+        "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+        "notes": [
+          "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured",
+          "session counts are Cramer-Rao bounds (sessions_scope: CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY): a lower bound on the sessions an UNBIASED regular estimator needs for the target relative standard error, at this parameter point of this model; not sufficient, and no lower bound for biased estimators, whose mean squared error can be smaller"
+        ]
+      }
+    ],
+    "pl_scope": "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT",
+    "sessions_scope": "CRLB_UNBIASED_REGULAR_LOWER_BOUND_ONLY",
+    "notes": [
+      "profile likelihood on the EXPECTED data of N sessions (Asimov data set), model-internal, one parameter point, one design (pl_scope: EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT): intervals use Wilks' asymptotic chi-square threshold, pointwise (1 degree of freedom); 'bounded' means bounded within the scan range, and counts read off the scan grid are conservative; the spread of intervals over repeated experiments and their finite-N coverage are not measured"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+# The sdist must be able to run its own test suite: tests import the
+# independent oracle (tests/_oracle.py) and the shared transfer check
+# (tests/_transfer_check.py), and test_r4/test_r5 load scripts/*.py.
+# setuptools' default sdist only picks up tests/test_*.py.
+graft tests
+graft scripts
+graft docs
+include CHANGELOG.md CITATION.cff
+global-exclude __pycache__ *.py[cod]

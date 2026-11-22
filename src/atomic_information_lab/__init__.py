@@ -5,6 +5,17 @@ Research reference only. No hardware access, no instrument calibration, no
 quantum or atomic-physics validation claim.
 """
 
+from .estimation import estimator_calibration, fit_mle
+from .identifiability import (
+    Calibration,
+    Design,
+    design_pareto,
+    design_search,
+    discrimination,
+    identifiability,
+)
+from .likelihood_profile import ParameterProfile, profile_likelihood, profile_report
+from .metrics import PolicyProfile, policy_profile
 from .model import (
     DEFAULT_ACTIONS,
     DEFAULT_HYPOTHESIS,
@@ -27,6 +38,16 @@ from .planner import (
     open_loop_value,
     optimal_policy,
     solve,
+)
+from .retention import (
+    RETENTION_MODES,
+    RetentionResult,
+    best_deterministic_retention,
+    best_open_loop_retention,
+    lagrangian_policy,
+    pathwise_policy,
+    retention_profile,
+    solve_retention,
 )
 
 __version__ = "0.1.0"
@@ -51,5 +72,26 @@ __all__ = [
     "open_loop_value",
     "best_open_loop",
     "nominal_policy",
+    "RETENTION_MODES",
+    "RetentionResult",
+    "solve_retention",
+    "pathwise_policy",
+    "lagrangian_policy",
+    "retention_profile",
+    "best_open_loop_retention",
+    "best_deterministic_retention",
+    "Calibration",
+    "Design",
+    "identifiability",
+    "discrimination",
+    "design_search",
+    "design_pareto",
+    "PolicyProfile",
+    "policy_profile",
+    "estimator_calibration",
+    "fit_mle",
+    "ParameterProfile",
+    "profile_likelihood",
+    "profile_report",
     "__version__",
 ]

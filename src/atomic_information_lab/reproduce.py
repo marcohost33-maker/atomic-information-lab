@@ -4,10 +4,20 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from .model import DEFAULT_ACTIONS, DEFAULT_HYPOTHESIS, TWO_HYPOTHESES, Action, Objective, Problem
+from .model import DEFAULT_ACTIONS, DEFAULT_HYPOTHESIS, STOP, TWO_HYPOTHESES, Action, Objective, Problem
 from .planner import best_open_loop, evaluate_policy, greedy_policy, nominal_policy, optimal_policy, solve
+from .retention import best_open_loop_retention, solve_retention
 
-__all__ = ["single_model_table", "two_model_table", "two_model_sensitivity"]
+__all__ = [
+    "single_model_table",
+    "two_model_table",
+    "two_model_sensitivity",
+    "retention_table",
+    "profile_table",
+    "design_pareto_table",
+]
+
+RETENTION_DELTAS = (0.0, 0.01, 0.05, 0.08, 0.1, 0.13, 1.0)
 
 
 def single_model_table(max_horizon: int = 5, objective: Objective = Objective()) -> list[dict]:
@@ -79,4 +89,260 @@ def two_model_sensitivity(horizon: int = 4) -> list[dict]:
                     "gap": fixed - d.value,
                 }
             )
+    return rows
+
+
+def retention_table(horizon: int = 4, deltas=RETENTION_DELTAS) -> list[dict]:
+    """Retention limit P(x != x0) <= delta, single default model (roadmap R13/P0, F29)."""
+    pr = Problem((DEFAULT_HYPOTHESIS,), actions=DEFAULT_ACTIONS)
+    rows = []
+    for delta in deltas:
+        p = solve_retention(pr, delta, horizon, "pathwise")
+        e = solve_retention(pr, delta, horizon, "expected")
+        fixed, seq = best_open_loop_retention(pr, horizon, delta, "pathwise")
+        rows.append(
+            {
+                "horizon": horizon,
+                "delta": delta,
+                "unconstrained": p.unconstrained_value,
+                "unconstrained_p_changed": p.unconstrained_p_changed,
+                "unconstrained_p_violation": p.unconstrained_p_violation,
+                "pathwise": p.value,
+                "pathwise_first_action": p.first_actions[0],
+                "pathwise_best_fixed": fixed,
+                "pathwise_best_fixed_sequence": list(seq),
+                "expected_randomised": e.value,
+                "expected_multiplier": e.multiplier,
+                "expected_mixture": [[w, a] for (w, _), a in zip(e.components, e.first_actions, strict=True)],
+                "expected_deterministic": e.deterministic_value,
+                "expected_duality_gap": e.duality_gap,
+            }
+        )
+    return rows
+
+
+IDENTIFIABILITY_DESIGN = ("fast", "reference", "precise", "reference", "fast", "precise")
+
+
+def profile_table(max_horizon: int = 5, objective: Objective = Objective()) -> list[dict]:
+    """Separate outputs per horizon (roadmap R29-02): Bayes risk, information, retention, energy, steps.
+
+    Three policies per horizon: the optimum with STOP, the planner forced to use
+    the whole horizon, and the best fixed sequence. The value column is what the
+    single-model table reports; the others show what that one number hides.
+    """
+    from .metrics import PROFILE_SCOPE, policy_profile
+
+    pr = Problem((DEFAULT_HYPOTHESIS,), objective=objective)
+    rows = []
+    for h in range(max_horizon + 1):
+        _, seq = best_open_loop(pr, h)
+
+        def fixed(_b, hist, _h, seq=seq):
+            return seq[len(hist)] if len(hist) < len(seq) else STOP
+
+        for label, pol in (
+            ("optimal_with_stop", optimal_policy(pr)),
+            ("forced_exactly_h", optimal_policy(pr, allow_stop=False)),
+            ("best_fixed_sequence", fixed),
+        ):
+            p = policy_profile(pr, pol, h)
+            rows.append(
+                {
+                    "h": h,
+                    "policy": label,
+                    "value": p.value,
+                    "bayes_risk": p.bayes_risk,
+                    "brier_initial": p.brier_initial,
+                    "brier_current": p.brier_current,
+                    "p_changed": p.p_changed,
+                    "information_initial_bits": p.information_initial_bits,
+                    "entropy_current_bits": p.entropy_current_bits,
+                    "expected_energy": p.expected_energy,
+                    "energy_cost": p.energy_cost,
+                    "expected_steps": p.expected_steps,
+                    "steps_distribution": list(p.steps_distribution),
+                    "scope": PROFILE_SCOPE,
+                }
+            )
+    return rows
+
+
+PARETO_LENGTH = 5
+
+
+def design_pareto_table(length: int = PARETO_LENGTH) -> dict:
+    """Non-dominated calibration designs of one length (roadmap R29-03), anchored parameter set."""
+    from .identifiability import (
+        PARETO_CRITERIA,
+        SESSIONS_SCOPE,
+        SESSIONS_SCOPE_TEXT,
+        Calibration,
+        design_pareto,
+        design_search,
+        parameter_names,
+    )
+
+    cal = Calibration(prep_error=0.02)
+    anchored = tuple(f for f in parameter_names(cal) if f != "backaction:fast")
+    scores = design_search(cal, anchored, length)
+    return {
+        "length": length,
+        "designs": len(scores),
+        "full_rank": sum(s.log_det is not None for s in scores),
+        "criteria": list(PARETO_CRITERIA),
+        "sessions_scope": SESSIONS_SCOPE,
+        "notes": [SESSIONS_SCOPE_TEXT],
+        "d_optimal": design_score_row(scores[0]),
+        "pareto": [design_score_row(s) for s in design_pareto(scores)],
+    }
+
+
+def design_score_row(score) -> dict:
+    """A ``DesignScore`` as JSON; the lower-bound words travel with every count (AIL-R28 Q2)."""
+    from .identifiability import SESSIONS_SCOPE_TEXT
+
+    row = {
+        "design": list(score.design.sequence),
+        "known_write": score.design.known_write,
+        "verdict": score.verdict,
+        "scope": score.scope,
+        "rank": score.rank,
+        "log_det": score.log_det,
+        "min_normalised_eigenvalue": score.min_normalised_eigenvalue,
+        "condition_number": score.condition_number,
+        "worst_sessions": score.worst_sessions,
+        "energy_per_session": score.energy_per_session,
+        "campaign_energy_crlb": score.campaign_energy_crlb,
+        "sessions_scope": score.sessions_scope,
+    }
+    if score.worst_sessions is not None:
+        row["notes"] = [SESSIONS_SCOPE_TEXT]
+    return row
+
+
+PL_SESSIONS = (373_950, 23_372)  # the registered Cramer-Rao count and count/16 (docs/ESTIMATOR_PROTOCOL.md)
+
+
+def profile_row(r) -> dict:
+    """A ``ParameterProfile`` as JSON; both scopes and their words travel with the counts (AIL-R28 Q2)."""
+    from .identifiability import SESSIONS_SCOPE_TEXT
+    from .likelihood_profile import PL_SCOPE_TEXT
+
+    return {
+        "name": r.name,
+        "true_value": r.true_value,
+        "target_rse": r.target_rse,
+        "crlb_rse": r.crlb_rse,
+        "crlb_sessions": r.crlb_sessions,
+        "profile_sessions": r.profile_sessions,
+        "profile_to_crlb": r.profile_to_crlb,
+        "asymmetry": r.asymmetry,
+        "low_plateau": r.low_plateau,
+        "high_plateau": r.high_plateau,
+        "bounded_sessions": r.bounded_sessions,
+        "flat": r.flat,
+        "low_monotone": r.low_monotone,
+        "high_monotone": r.high_monotone,
+        "low_dip": r.low_dip,
+        "high_dip": r.high_dip,
+        "scan": [r.scan_low, r.scan_high],
+        "not_converged": r.not_converged,
+        "intervals": [
+            {
+                "sessions": iv.sessions,
+                "level": iv.level,
+                "low": iv.low,
+                "high": iv.high,
+                "bounded": iv.bounded,
+                "pl_scope": iv.pl_scope,
+                "sessions_scope": r.sessions_scope,
+            }
+            for iv in r.intervals
+        ],
+        "points": [[p.value, p.statistic, p.converged] for p in r.points],
+        "pl_scope": r.pl_scope,
+        "sessions_scope": r.sessions_scope,
+        "notes": [PL_SCOPE_TEXT, SESSIONS_SCOPE_TEXT],
+    }
+
+
+def profile_likelihood_table(sessions=PL_SESSIONS) -> dict:
+    """Roadmap R29 / P1: profile likelihood of every parameter of the registered calibration design."""
+    from .identifiability import SESSIONS_SCOPE, Calibration, Design, parameter_names
+    from .likelihood_profile import PL_SCOPE, PL_SCOPE_TEXT, profile_report
+
+    cal = Calibration(prep_error=0.02)
+    anchored = tuple(f for f in parameter_names(cal) if f != "backaction:fast")
+    design = Design(("fast", "reference", "precise", "reference", "fast", "precise"), True)
+    rows = profile_report(cal, design, anchored, None, 0.1, tuple(sessions))
+    return {
+        "design": list(design.sequence),
+        "known_write": design.known_write,
+        "free": list(anchored),
+        "sessions": list(sessions),
+        "parameters": [profile_row(r) for r in rows],
+        "pl_scope": PL_SCOPE,
+        "sessions_scope": SESSIONS_SCOPE,
+        "notes": [PL_SCOPE_TEXT],
+    }
+
+
+def identifiability_scenarios():
+    """(label, calibration, design, free) of the roadmap R13/P0 identifiability table."""
+    from .identifiability import Calibration, Design, parameter_names
+
+    cal = Calibration(prep_error=0.02)
+    every = parameter_names(cal)
+    anchored = tuple(f for f in every if f != "backaction:fast")  # fast read defines the rate unit
+    target_only = ("k01", "k10", "bias_flip", "error:fast", "error:precise", "backaction:precise")
+    d6 = IDENTIFIABILITY_DESIGN
+    return [
+        ("all free, unknown writes", cal, Design(d6), every),
+        ("all free, known writes", cal, Design(d6, True), every),
+        ("fast back-action fixed, unknown writes", cal, Design(d6), anchored),
+        (
+            "fast back-action fixed, known writes, periodic F-R-P",
+            cal,
+            Design(("fast", "reference", "precise") * 2, True),
+            anchored,
+        ),
+        ("fast back-action fixed, known writes", cal, Design(d6, True), anchored),
+        ("no reference read (target reads only)", cal, Design(("fast", "precise") * 2), target_only),
+        ("best 4-step design (D-optimal)", cal, Design(("fast", "precise", "reference", "precise"), True), anchored),
+    ]
+
+
+def identifiability_table() -> list[dict]:
+    """Which parameters calibration sessions can separate (roadmap R13/P0)."""
+    from .identifiability import identifiability
+
+    rows = []
+    for label, cal, design, free in identifiability_scenarios():
+        r = identifiability(cal, design, free)
+        worst = None
+        if r.locally_identifiable and None not in r.sessions_for_target:
+            i = max(range(len(r.free)), key=lambda k: r.sessions_for_target[k])
+            worst = [r.free[i], r.sessions_for_target[i]]
+        rows.append(
+            {
+                "scenario": label,
+                "design": list(design.sequence),
+                "known_write": design.known_write,
+                "free": len(r.free),
+                "rank": r.rank,
+                "verdict": r.verdict,
+                "scope": r.scope,
+                "witnesses": [w.name for w in r.witnesses],
+                "zero_information": list(r.zero_information),
+                "worst_parameter_sessions_for_10pct": worst,
+                "sessions_for_10pct": dict(zip(r.free, r.sessions_for_target, strict=True)),
+                "min_normalised_eigenvalue": r.min_normalised_eigenvalue,
+                "condition_number": r.condition_number,
+                "sessions_scope": r.sessions_scope,
+                # the report's notes travel with the counts: they say in words that the counts are lower
+                # bounds (AIL-R28 Q2) and carry the boundary warning when a free parameter is 0
+                "notes": list(r.notes),
+            }
+        )
     return rows
