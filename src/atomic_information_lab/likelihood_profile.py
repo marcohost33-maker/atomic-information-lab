@@ -57,7 +57,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from math import exp, floor, isfinite, log1p
+from math import exp, floor, isfinite, log1p, sqrt
 from statistics import NormalDist
 
 from .identifiability import SESSIONS_SCOPE, Calibration, Design, _check_free, _leaves, _real, identifiability
@@ -74,6 +74,11 @@ __all__ = [
     "profile_likelihood",
     "profile_report",
     "chi2_1_quantile",
+    "DATA_PL_SCOPE",
+    "DATA_PL_SCOPE_TEXT",
+    "DataInterval",
+    "likelihood_ratio_statistic",
+    "likelihood_ratio_interval",
 ]
 
 PL_SCOPE = "EXPECTED_DATA_PROFILE_MODEL_INTERNAL_ONE_POINT"
@@ -547,3 +552,143 @@ def profile_report(
     if isinstance(names, str) or not names or any(n not in free for n in names):
         raise ValueError("names must be free parameters")
     return tuple(profile_likelihood(truth, design, free, n, target_rse, sessions, level) for n in names)
+
+
+# ---------------------------------------------------------------- intervals from OBSERVED counts (R33)
+DATA_PL_SCOPE = "OBSERVED_DATA_LIKELIHOOD_RATIO_WILKS_MODEL_INTERNAL"
+DATA_PL_SCOPE_TEXT = (
+    "likelihood-ratio (profile) interval from observed session counts, Wilks' chi-square threshold with one "
+    "degree of freedom (pl_scope: OBSERVED_DATA_LIKELIHOOD_RATIO_WILKS_MODEL_INTERNAL): valid within the "
+    "synthetic model; its coverage was measured once (docs/PL_FALSIFICATION_RESULTS.json: 0.939-0.962 over ten "
+    "parameters, two N, 1000 replications each, tails balanced where the Wald interval missed on one side "
+    "only); 'bounded' means bounded within the scan range"
+)
+
+
+@dataclass(frozen=True)
+class DataInterval:
+    name: str
+    estimate: float  # maximum-likelihood estimate (all free parameters fitted)
+    std_error: float | None  # Wald standard error at the estimate (expected Fisher information)
+    sessions: int
+    level: float
+    low: float | None  # None: open (no converged point above the threshold within the scan)
+    high: float | None
+    bounded: bool
+    wald_low: float | None
+    wald_high: float | None
+    full_fit_not_global: bool  # a restricted fit fell below the full fit: the full fit was a local optimum
+    pl_scope: str = DATA_PL_SCOPE
+
+
+def _observed(start: Calibration, design: Design, free: tuple[str, ...], counts):
+    from .estimation import _check_counts, fit_mle
+
+    total = _check_counts(start, design, counts)
+    fit = fit_mle(start, design, free, counts)
+    if not fit.converged:
+        raise ArithmeticError(f"the full maximum-likelihood fit did not converge: {fit.reason}")
+    target = {o: 0.0 for o, _ in _leaves(start, design, ())}
+    for o, n in counts.items():
+        target[o] = n / total
+    est = dict(zip(free, fit.values, strict=True))
+    cal_hat = start.with_values(est)
+    kl_full = _kl(target, cal_hat, design)
+    if kl_full is None:
+        raise ArithmeticError("an observed outcome has probability 0 at the estimate")
+    return total, fit, est, cal_hat, target, kl_full
+
+
+def likelihood_ratio_statistic(
+    start: Calibration, design: Design, free: Iterable[str], counts, name: str, value: float
+) -> tuple[float, bool, bool]:
+    """``Lambda(value) = 2 N [KL(emp || p restricted) - KL(emp || p full)]`` from observed counts.
+
+    ``emp`` are the observed outcome frequencies; the full fit is ``estimation.fit_mle`` from ``start``,
+    the restricted fit fixes ``name`` at ``value`` and re-optimises the others from the full estimates
+    (and from ``start``), keeping the lower divergence. Returns (Lambda, restricted fit converged,
+    full fit not global); a restricted value below the full one is reported, and Lambda is then 0.
+    """
+    free = _check_free(start, free)
+    if name not in free:
+        raise ValueError(f"{name!r} is not a free parameter")
+    if not _real(value) or not value > 0:
+        raise ValueError("value must be a positive finite number")
+    total, _, est, _, target, kl_full = _observed(start, design, free, counts)
+    nuis = tuple(f for f in free if f != name)
+    starts = [{f: est[f] for f in nuis}, {f: start.parameters()[f] for f in nuis}]
+    v, _, ok, _ = _best_of(start, design, name, value, nuis, starts, target)
+    lam = 2.0 * total * (v - kl_full)
+    return max(lam, 0.0), ok, lam < 0.0
+
+
+def likelihood_ratio_interval(
+    start: Calibration, design: Design, free: Iterable[str], counts, name: str, level: float = 0.95
+) -> DataInterval:
+    """Likelihood-ratio interval for one parameter from observed outcome ``counts``.
+
+    Marches outwards from the estimate in steps of its Wald standard error (doubling), every point
+    warm-started from its inner neighbour, until ``Lambda`` exceeds the chi-square(1) quantile; the end
+    point is bisected to 1e-4 of its distance from the estimate. A side that reaches the domain bound or
+    ``SCAN_CAP`` times the estimate without a converged crossing is reported open.
+    """
+    free = _check_free(start, free)
+    if name not in free:
+        raise ValueError(f"{name!r} is not a free parameter")
+    delta = chi2_1_quantile(level)
+    total, fit, est, _, target, kl_full = _observed(start, design, free, counts)
+    i = free.index(name)
+    theta = est[name]
+    se = fit.std_errors[i] if fit.std_errors is not None else None
+    nuis = tuple(f for f in free if f != name)
+    ub = _upper_bound(name)
+    not_global = False
+
+    def lam_at(value, warm):
+        nonlocal not_global
+        v, th, ok, _ = _best_of(start, design, name, value, nuis, [warm, {f: est[f] for f in nuis}], target)
+        lam = 2.0 * total * (v - kl_full)
+        if lam < -1e-9 * max(1.0, 2.0 * total * kl_full):
+            not_global = True
+        return max(lam, 0.0), ok, th
+
+    step0 = se if se is not None and se > 0 else 0.1 * theta
+    ends = []
+    for sign in (-1.0, 1.0):
+        limit = theta if sign < 0 else ((ub - theta) if ub is not None else (SCAN_CAP - 1.0) * theta)
+        warm = {f: est[f] for f in nuis}
+        prev_value, prev_warm, end, k = theta, warm, None, 0
+        while True:
+            off = step0 * 2.0 ** (k / 2)  # sqrt(2) growth: fine near the estimate, fast far out
+            k += 1
+            if off >= limit:
+                off = limit * (1 - 2.0**-_GRID_DEPTH)
+            value = theta + sign * off
+            lam, ok, th = lam_at(value, warm)
+            if ok and lam > delta:
+                a, b, a_warm = prev_value, value, prev_warm
+                while abs(b - a) > _BISECT_REL * abs(b - theta):
+                    mid = 0.5 * (a + b)
+                    lm, okm, thm = lam_at(mid, a_warm)
+                    if not okm:
+                        break  # conservative: keep the outer, verified point
+                    if lm > delta:
+                        b = mid
+                    else:
+                        a, a_warm = mid, thm
+                end = b
+                break
+            if ok:
+                prev_value, prev_warm = value, th
+            warm = th
+            if off >= limit * (1 - 2.0**-_GRID_DEPTH):
+                break
+        ends.append(end)
+    low, high = ends
+    wl = wh = None
+    if se is not None:
+        z = sqrt(delta)
+        wl, wh = theta - z * se, theta + z * se
+    return DataInterval(
+        name, theta, se, total, float(level), low, high, low is not None and high is not None, wl, wh, not_global
+    )

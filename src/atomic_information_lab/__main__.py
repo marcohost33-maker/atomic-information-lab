@@ -1,4 +1,4 @@
-"""Command line: python -m atomic_information_lab {reproduce,solve,identify,designs,profile-likelihood} ..."""
+"""Command line: python -m atomic_information_lab <command> ... (see --help for the list of commands)."""
 
 from __future__ import annotations
 
@@ -166,7 +166,59 @@ def _build_parser() -> argparse.ArgumentParser:
         default=0.1,
         help=f"target relative standard error (default 0.1); {SESSIONS_SCOPE_TEXT}",
     )
+    ci = sub.add_parser(
+        "lr-interval",
+        help="likelihood-ratio (profile) interval from OBSERVED session counts, next to the Wald interval (R33)",
+    )
+    ci.add_argument("--design", required=True, help="comma-separated action names, e.g. fast,reference,precise")
+    ci.add_argument("--known-write", action="store_true", help="the written bit x0 is recorded per session")
+    ci.add_argument(
+        "--free",
+        default="anchored",
+        help="'all', 'anchored' (all but backaction:fast) or comma-separated parameter names",
+    )
+    ci.add_argument("--param", required=True, help="comma-separated free parameters to report")
+    ci.add_argument(
+        "--counts",
+        required=True,
+        help='JSON file mapping outcomes to counts, e.g. {"1,0,1": 12, ...} (x0 first with --known-write)',
+    )
+    ci.add_argument("--level", type=_finite_float, default=0.95)
+    ci.add_argument("--k01", type=_finite_float, default=0.07, help="start value of the fit")
+    ci.add_argument("--k10", type=_finite_float, default=0.045, help="start value of the fit")
+    ci.add_argument("--bias-flip", type=_finite_float, default=0.025, help="start value of the fit")
+    ci.add_argument("--prep-error", type=_finite_float, default=0.02, help="start value of the fit")
+    ci.add_argument("--bias-prior", type=_finite_float, default=0.5, help="start value of the fit")
     return ap
+
+
+def _read_counts(path: str) -> dict:
+    with open(path, encoding="utf-8") as fh:
+        raw = json.load(fh)
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError("--counts must hold a non-empty JSON object outcome -> count")
+    out = {}
+    for key, n in raw.items():
+        try:
+            outcome = tuple(int(x) for x in str(key).split(","))
+        except ValueError as exc:
+            raise ValueError(f"bad outcome key {key!r}: comma-separated 0/1") from exc
+        if isinstance(n, bool) or not isinstance(n, int) or n < 0:
+            raise ValueError(f"count of {key!r} must be an int >= 0")
+        out[outcome] = n
+    return out
+
+
+def _lr_interval(args) -> dict:
+    from .identifiability import Design
+    from .likelihood_profile import DATA_PL_SCOPE, DATA_PL_SCOPE_TEXT, likelihood_ratio_interval
+
+    cal, free = _calibration_and_free(args)
+    design = Design(tuple(a.strip() for a in args.design.split(",")), args.known_write)
+    counts = _read_counts(args.counts)
+    names = tuple(n.strip() for n in args.param.split(","))
+    rows = [dataclasses.asdict(likelihood_ratio_interval(cal, design, free, counts, n, args.level)) for n in names]
+    return {"lr_intervals": rows, "pl_scope": DATA_PL_SCOPE, "notes": [DATA_PL_SCOPE_TEXT]}
 
 
 def _profile_likelihood(args) -> dict:
@@ -267,6 +319,8 @@ def main(argv: list[str] | None = None) -> int:
             out = _designs(args)
         elif args.command == "profile-likelihood":
             out = _profile_likelihood(args)
+        elif args.command == "lr-interval":
+            out = _lr_interval(args)
         else:
             pr = Problem(
                 (Hypothesis(args.k01, args.k10, args.bias_flip),),
@@ -293,8 +347,8 @@ def main(argv: list[str] | None = None) -> int:
 
                 prof = policy_profile(pr, optimal_policy(pr, allow_stop=not args.forced), args.horizon)
                 out["profile"] = dataclasses.asdict(prof)
-    except (ValueError, ArithmeticError) as exc:
-        calibration_commands = ("identify", "designs", "profile-likelihood")
+    except (ValueError, ArithmeticError, OSError) as exc:
+        calibration_commands = ("identify", "designs", "profile-likelihood", "lr-interval")
         hint = "" if args.command in calibration_commands else f" (horizon range 0..{MAX_HORIZON})"
         print(f"error: {exc}{hint}", file=sys.stderr)
         return 2
