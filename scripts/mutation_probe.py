@@ -363,10 +363,12 @@ MUTANTS = {
     ),
     "M45_zero_start_frozen": (
         PL_FILE,
-        "    theta = {f: _project(max(start[f], _START_FLOOR), hi[i]) for i, f in enumerate(nuis)}",
-        "    theta = dict(start)",
-        "a nuisance start on 0 stays there in log coordinates (cross-family review of PR #7)",
-        {PL: "relation"},
+        "        scaled = [fim[i][i] * max(vals[i], 1e-6) ** 2 for i in range(k)]",
+        "        scaled = [fim[i][i] * vals[i] ** 2 for i in range(k)]",
+        "'no information' decided in log coordinates; SURVIVES by design: the zero start is defended twice "
+        "(start projection, and the line search projects every value into the open domain), so removing one "
+        "defence alone leaves the Codex case correct -- a documented limit of single-edit mutants (N-46)",
+        {PL: "survives"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")

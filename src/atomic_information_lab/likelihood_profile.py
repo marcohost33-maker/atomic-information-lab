@@ -96,7 +96,7 @@ _INNER_ITER = 200
 _INNER_REL_STEP = 1e-10
 _INNER_DECREMENT = 1e-10  # converged when scoring promises < 1e-10 relative improvement of the divergence
 _LOWER = 1e-12  # nuisance parameters stay >= this (the domain is open at 0 for relative scales)
-_START_FLOOR = 1e-8  # a nuisance start below this (e.g. exactly 0) is moved here before the search
+_START_FLOOR = _LOWER  # a nuisance start on 0 is moved onto the open domain; higher floors change the basin (N-46)
 _BISECT_REL = 1e-4  # interval end points to 1e-4 of their distance from the truth
 _UPPER = {"bias_flip": 0.5, "prep_error": 0.5, "bias_prior": 1.0}
 
@@ -186,7 +186,8 @@ def _inner(
     relative; a step the line search had to shorten never counts as convergence.
     """
     # a start on the lower bound (e.g. the default prep_error = 0) would have no score in log coordinates
-    # and be frozen there: every start is projected into the open domain first (cross-family review, PR #7)
+    # and be frozen there: every start is projected into the open domain first (cross-family review, PR #7);
+    # the linear-scale "no information" test below is what keeps such a parameter moving
     hi = [_upper_bound(f) for f in nuis]
     theta = {f: _project(max(start[f], _START_FLOOR), hi[i]) for i, f in enumerate(nuis)}
     try:
