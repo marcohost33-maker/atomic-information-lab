@@ -6,6 +6,15 @@ quantum or atomic-physics validation claim.
 """
 
 from .estimation import estimator_calibration, fit_mle
+from .gaussian import (
+    GAUSSIAN_SCOPE,
+    GaussianAction,
+    GaussianModel,
+    GaussianObjective,
+    GaussianPlan,
+    lookahead_plan,
+    solve_gaussian,
+)
 from .identifiability import (
     Calibration,
     Design,
@@ -93,5 +102,12 @@ __all__ = [
     "ParameterProfile",
     "profile_likelihood",
     "profile_report",
+    "GAUSSIAN_SCOPE",
+    "GaussianAction",
+    "GaussianModel",
+    "GaussianObjective",
+    "GaussianPlan",
+    "solve_gaussian",
+    "lookahead_plan",
     "__version__",
 ]

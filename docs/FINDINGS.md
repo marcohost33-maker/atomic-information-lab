@@ -168,7 +168,26 @@ Limits: model-internal throughout; one parameter point; two designs; 1000 replic
 (Monte-Carlo error about 0.007 on a coverage); the part-B biases at N = 30 894 are over the 63.5 %
 converged fits. Same-family work.
 
-## 10. Not checked
+## 10. R34 continuous line: Kalman filter, STOP, look-ahead (2026-11-24, same-family; cross-family review pending)
+
+Module, oracle, tests, protocol `docs/GAUSSIAN_PROTOCOL.md` and runner `scripts/gaussian_grid.py`
+were committed together in `f1eb353` before the grid was computed; results
+`docs/GAUSSIAN_GRID_RESULTS.json` in `48048e2` (provenance: head `f1eb353`, clean tree).
+
+| ID | Finding | Verdict | Evidence |
+|---|---|---|---|
+| N-47 | In the linear-Gaussian analogue the posterior covariance, and hence every terminal loss, does not depend on the data; the Bayes-optimal policy with STOP is an open-loop plan and the value of adaptivity is exactly 0 (Meier, Peschon & Dressler 1967). The R9 statement "no statistically supported advantage over a fixed reference plan" is therefore no evidence about adaptivity: for that model class there was none to find. The discrete model's adaptive gain (9.6 % at `h = 5`) comes from its non-Gaussian structure. | CONFIRMED (structural; verified) | covariance invariance test; package optimum = rational brute force over all plans up to `h = 4`, two models, ≤ 1e-12; generative simulation (6000 runs, |z| < 4) with a negative control (offset prior off by 4×: z > 4) |
+| N-48 | Look-ahead depth is not monotone. At the default point the greedy rule is optimal (0.10520) and the two-step rule is 5.1 % worse (exploratory, before registration). On the registered grid: two-step worse than greedy at 11 / 27 points (G2 confirmed, 10 excluding the default point), closer to the optimum on average (3.1 % vs 4.0 %, G3 confirmed), worst case 11.8 % (G4 **refuted**: registered bound 10 %); greedy worst case 40.6 %. | G1–G3, G5, G6 CONFIRMED; G4 REFUTED | `docs/GAUSSIAN_GRID_RESULTS.json`; the test re-runs the grid and compares every row |
+| N-49 | Post hoc, descriptive only (not registered): 22 / 27 optimal plans start with a target read and place the reference read after it; where the two-step rule loses (15 points) it reads the reference first in 10 and uses the optimum's readings in a worse order in 7. The order matters because the offset drifts between readings. | post hoc | same file |
+
+New mutants M46–M50 (reference read sees the target, back-action ignored, STOP removed, Kalman
+mean sign, look-ahead executes the wrong action), all killed by relations; M49 leaves every
+planning figure exact and is seen only by the oracle means and the generative simulation.
+
+Limits: model-internal, synthetic, one model class with three actions; the grid varies three of
+the eight parameters; `h = 6`. No statement about an instrument.
+
+## 11. Not checked
 
 R6 figures, rounds R1–R7, the literature list of the earlier report, any
 statement about other projects, Python < 3.12.

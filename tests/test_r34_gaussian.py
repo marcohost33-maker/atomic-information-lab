@@ -234,3 +234,125 @@ def test_invalid_calls_are_rejected():
         update(m, initial_state(m), m.action("fast"), float("nan"))
     with pytest.raises(ValueError):
         update(m, initial_state(m), GaussianAction("other", 1, 0.1, 1))
+
+
+# ------------------------------------------------------------------ pre-registered grid and CLI
+def _load_runner():
+    import importlib.util
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("gaussian_grid", root / "scripts" / "gaussian_grid.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod, root
+
+
+def test_registered_grid_results_reproduce_from_the_current_code():
+    import json
+
+    runner, root = _load_runner()
+    stored = json.loads((root / "docs" / "GAUSSIAN_GRID_RESULTS.json").read_text(encoding="utf-8"))
+    fresh = runner.run()
+    assert {k: v["verdict"] for k, v in fresh["predictions"].items()} == {
+        "G1": "CONFIRMED",
+        "G2": "CONFIRMED",
+        "G3": "CONFIRMED",
+        "G4": "REFUTED",
+        "G5": "CONFIRMED",
+        "G6": "CONFIRMED",
+    }
+    assert {k: v["verdict"] for k, v in stored["predictions"].items()} == {
+        k: v["verdict"] for k, v in fresh["predictions"].items()
+    }
+    assert len(stored["rows"]) == len(fresh["rows"]) == 27
+    for a, b in zip(stored["rows"], fresh["rows"], strict=True):
+        assert a["optimal_plan"] == b["optimal_plan"] and a["two_step_plan"] == b["two_step_plan"]
+        for key in ("optimal", "two_step", "greedy", "reference_plan"):
+            assert a[key] == pytest.approx(b[key], abs=TOL)
+    # the results were produced by a clean tree at the registration commit or later
+    assert stored["provenance"]["dirty"] is False
+
+
+def test_cli_gaussian(capsys):
+    import json
+
+    from atomic_information_lab.__main__ import main
+
+    assert main(["gaussian", "--horizon", "6"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["optimal"]["sequence"] == ["fast", "reference", "fast"]
+    assert out["optimal"]["value"] == pytest.approx(solve_gaussian(DEFAULT_GAUSSIAN_MODEL, 6).value, abs=TOL)
+    assert out["lookahead"]["depth"] == 2 and out["optimal"]["scope"] == GAUSSIAN_SCOPE
+    assert main(["gaussian", "--horizon", "4", "--retention-limit", "0.03"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["optimal"]["damage"] <= 0.03 and "reference_plan" not in out
+    for argv in (["gaussian", "--horizon", "11"], ["gaussian", "--horizon", "2", "--depth", "0"]):
+        assert main(argv) == 2
+    assert main(["reproduce", "--table", "gaussian", "--max-horizon", "2"]) == 0
+    assert [r["horizon"] for r in json.loads(capsys.readouterr().out)["gaussian"]] == [0, 1, 2]
+
+
+# ------------------------------------------------------------------ registration chain (from git)
+REGISTRATION = "f1eb3539ab2f1ae42a01b8c4a292ed8eae1e9e4f"
+
+
+def _git_has(rev):
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    if shutil.which("git") is None:
+        return False
+    root = Path(__file__).resolve().parents[1]
+    r = subprocess.run(["git", "-C", str(root), "cat-file", "-e", f"{rev}^{{commit}}"], capture_output=True)
+    return r.returncode == 0
+
+
+@pytest.mark.skipif(
+    not _git_has(REGISTRATION), reason="needs git history with the R34 registration (CI: fetch-depth 0)"
+)
+def test_results_were_produced_by_the_registered_files():
+    """Protocol, runner and module hashed in the results are the files of the registration commit,
+    and the protocol was only extended below its rules afterwards (never edited above)."""
+    import hashlib
+    import json
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    stored = json.loads((root / "docs" / "GAUSSIAN_GRID_RESULTS.json").read_text(encoding="utf-8"))
+    prov = stored["provenance"]
+    assert prov["git_head"] == REGISTRATION and prov["dirty"] is False
+
+    def at(path):
+        return subprocess.run(
+            ["git", "-C", str(root), "show", f"{REGISTRATION}:{path}"], capture_output=True, check=True
+        ).stdout
+
+    assert hashlib.sha256(at("docs/GAUSSIAN_PROTOCOL.md")).hexdigest() == prov["sha256_protocol"]
+    assert hashlib.sha256(at("scripts/gaussian_grid.py")).hexdigest() == prov["sha256_runner"]
+    assert hashlib.sha256(at("src/atomic_information_lab/gaussian.py")).hexdigest() == prov["sha256_module"]
+    registered = at("docs/GAUSSIAN_PROTOCOL.md").decode("utf-8")
+    current = (root / "docs" / "GAUSSIAN_PROTOCOL.md").read_text(encoding="utf-8")
+    assert current.startswith(registered)
+    # the results file is not part of the registration commit
+    r = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "-e", f"{REGISTRATION}:docs/GAUSSIAN_GRID_RESULTS.json"],
+        capture_output=True,
+    )
+    assert r.returncode != 0
+
+
+def test_readme_table_matches_the_code():
+    """Every figure of the README's Gaussian table is the code's value rounded to 7 digits."""
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    rows = {r["horizon"]: r for r in gaussian_table(max_horizon=6)}
+    keys = ("optimal", "two_step_lookahead", "greedy", "best_forced_h", "reference_plan")
+    for h in (1, 2, 3, 6):
+        r = rows[h]
+        cells = [f"{r[k]:.7f}" for k in keys]
+        line = f"| {h} | {cells[0]} | {', '.join(r['optimal_plan'])} | " + " | ".join(cells[1:]) + " |"
+        assert line in text, line

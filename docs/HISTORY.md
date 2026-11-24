@@ -17,6 +17,7 @@ synthetic classical models only.
 | 0.1.0 | consolidation, independent oracle, fail-closed fixes (rate overflow, NaN-safe mass guard), mutation probes | this repository |
 | R13 (P0, part) | hard retention limit `P(x_t != x0) <= delta` (pathwise and expected, F29) | `retention.py` (unreleased) |
 | R13 (P0, part) | experimental identifiability: Fisher rank, exact witnesses, Cramér–Rao session counts, design search | `identifiability.py` (unreleased) |
+| R13 (P0, part) / R34 | continuous line revisited: linear-Gaussian analogue with an exact oracle; adaptivity provably worth zero there, which explains the R9 null result | `gaussian.py` (unreleased) |
 
 ## Source bundles (SHA-256 of the archived ZIP files)
 

@@ -53,11 +53,21 @@ def _build_parser() -> argparse.ArgumentParser:
             "profile",
             "design-pareto",
             "profile-likelihood",
+            "gaussian",
             "all",
         ),
         default="all",
     )
     rp.add_argument("--max-horizon", type=int, default=None)
+    gp = sub.add_parser(
+        "gaussian", help="linear-Gaussian line: exact plan with STOP vs. look-ahead and reference plan (R13/P0)"
+    )
+    gp.add_argument("--horizon", type=int, required=True)
+    gp.add_argument("--depth", type=int, default=2, help="look-ahead depth of the receding-horizon rule")
+    gp.add_argument("--bias-prior-var", type=_finite_float, default=0.25)
+    gp.add_argument("--drift-var", type=_finite_float, default=0.02)
+    gp.add_argument("--energy-lambda", type=_finite_float, default=0.012)
+    gp.add_argument("--retention-limit", type=_finite_float, default=None, help="limit on E[(x - x0)^2]")
     sp = sub.add_parser("solve", help="solve one single-model instance")
     sp.add_argument("--horizon", type=int, required=True)
     sp.add_argument("--k01", type=_finite_float, default=0.07)
@@ -288,6 +298,31 @@ def _identify(args) -> dict:
     return {"identifiability": dataclasses.asdict(r)}
 
 
+def _gaussian(args) -> dict:
+    from .gaussian import (
+        DEFAULT_GAUSSIAN_MODEL,
+        GaussianObjective,
+        fixed_plan,
+        lookahead_plan,
+        reference_plan,
+        solve_gaussian,
+    )
+
+    m = dataclasses.replace(
+        DEFAULT_GAUSSIAN_MODEL,
+        bias_prior_var=args.bias_prior_var,
+        drift_var=args.drift_var,
+        objective=GaussianObjective(energy_lambda=args.energy_lambda),
+    )
+    opt = solve_gaussian(m, args.horizon, retention_limit=args.retention_limit)
+    look = lookahead_plan(m, args.horizon, args.depth, retention_limit=args.retention_limit)
+    out = {"horizon": args.horizon, "optimal": dataclasses.asdict(opt), "lookahead": dataclasses.asdict(look)}
+    out["lookahead"]["depth"] = args.depth
+    if args.retention_limit is None:
+        out["reference_plan"] = dataclasses.asdict(fixed_plan(m, reference_plan(args.horizon)))
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
@@ -313,6 +348,13 @@ def main(argv: list[str] | None = None) -> int:
                 out["design_pareto"] = design_pareto_table()
             if args.table == "profile-likelihood":  # not part of "all": ten profiles take several minutes
                 out["profile_likelihood"] = profile_likelihood_table()
+            if args.table == "gaussian":  # not part of "all": its own model class (R34)
+                from .gaussian import MAX_GAUSSIAN_HORIZON, gaussian_table
+
+                gh = 8 if args.max_horizon is None else args.max_horizon
+                if not 0 <= gh <= MAX_GAUSSIAN_HORIZON:
+                    raise ValueError("--max-horizon out of range")
+                out["gaussian"] = gaussian_table(max_horizon=gh)
         elif args.command == "identify":
             out = _identify(args)
         elif args.command == "designs":
@@ -321,6 +363,8 @@ def main(argv: list[str] | None = None) -> int:
             out = _profile_likelihood(args)
         elif args.command == "lr-interval":
             out = _lr_interval(args)
+        elif args.command == "gaussian":
+            out = _gaussian(args)
         else:
             pr = Problem(
                 (Hypothesis(args.k01, args.k10, args.bias_flip),),
@@ -348,7 +392,7 @@ def main(argv: list[str] | None = None) -> int:
                 prof = policy_profile(pr, optimal_policy(pr, allow_stop=not args.forced), args.horizon)
                 out["profile"] = dataclasses.asdict(prof)
     except (ValueError, ArithmeticError, OSError) as exc:
-        calibration_commands = ("identify", "designs", "profile-likelihood", "lr-interval")
+        calibration_commands = ("identify", "designs", "profile-likelihood", "lr-interval", "gaussian")
         hint = "" if args.command in calibration_commands else f" (horizon range 0..{MAX_HORIZON})"
         print(f"error: {exc}{hint}", file=sys.stderr)
         return 2

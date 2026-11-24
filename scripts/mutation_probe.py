@@ -50,6 +50,8 @@ PROFILE = "tests/test_r31_policy_profile.py"
 PARETO = "tests/test_r31_design_pareto.py"
 PL_FILE = "atomic_information_lab/likelihood_profile.py"
 PL = "tests/test_r32_profile_likelihood.py"
+GAUSS_FILE = "atomic_information_lab/gaussian.py"
+GAUSS = "tests/test_r34_gaussian.py"
 
 # id: (file, old, new, what it breaks, {suite: expected verdict})
 MUTANTS = {
@@ -369,6 +371,42 @@ MUTANTS = {
         "(start projection, and the line search projects every value into the open domain), so removing one "
         "defence alone leaves the Codex case correct -- a documented limit of single-edit mutants (N-46)",
         {PL: "survives"},
+    ),
+    "M46_gauss_reference_reads_target": (
+        GAUSS_FILE,
+        "    return (0.0, 0.0, 1.0) if action.reads_reference else (0.0, 1.0, 1.0)",
+        "    return (0.0, 1.0, 1.0)",
+        "a Gaussian reference read sees the stored value instead of the offset alone (R34)",
+        {GAUSS: "relation"},
+    ),
+    "M47_gauss_backaction_ignored": (
+        GAUSS_FILE,
+        "    q = model.drift_var * action.backaction",
+        "    q = model.drift_var",
+        "back-action no longer speeds up the drift of the stored value (R34)",
+        {GAUSS: "relation"},
+    ),
+    "M48_gauss_no_stop_before_horizon": (
+        GAUSS_FILE,
+        "    options = [(terminal_loss(model, st), ())]  # STOP first: wins ties",
+        "    options = [(terminal_loss(model, st), ())] if h == 0 else []",
+        "the Gaussian planner must use its whole horizon (STOP removed) (R34)",
+        {GAUSS: "relation"},
+    ),
+    "M49_gauss_innovation_sign": (
+        GAUSS_FILE,
+        "        mean = tuple(mean[i] + k[i] * innov for i in range(3))",
+        "        mean = tuple(mean[i] - k[i] * innov for i in range(3))",
+        "Kalman mean update with the wrong sign; the covariances (and every planning figure) stay exact, "
+        "so only the oracle means and the generative simulation can see it (R34)",
+        {GAUSS: "relation"},
+    ),
+    "M50_gauss_lookahead_takes_last_action": (
+        GAUSS_FILE,
+        "        a = model.action(first[0])",
+        "        a = model.action(first[-1])",
+        "the receding-horizon rule executes the last action of its plan instead of the first (R34)",
+        {GAUSS: "relation"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")

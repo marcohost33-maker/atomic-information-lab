@@ -50,3 +50,12 @@ reason to change the grid. MC error: none (all figures are exact within the mode
 ## Deviations
 
 (none yet)
+
+## Outcome (appended after the run; rules above unchanged)
+
+Run at `f1eb353` on a clean tree, results in `docs/GAUSSIAN_GRID_RESULTS.json`:
+G1 CONFIRMED; G2 CONFIRMED (10 points besides the default); G3 CONFIRMED (mean excess two-step
+3.08 %, greedy 4.04 %); **G4 REFUTED** (max excess of the two-step rule 11.85 % at
+`bias_prior_var = 0.25, drift_var = 0.02, energy_lambda = 0.004`); G5 CONFIRMED (26 / 27); G6
+CONFIRMED (0 counter-examples). One defect of the runner (operator precedence in the G6 filter)
+was found and fixed before the registration commit; the run used the committed runner unchanged.

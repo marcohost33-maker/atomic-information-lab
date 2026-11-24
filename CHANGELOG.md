@@ -5,6 +5,20 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Added -- R34: continuous line, Kalman filter + STOP + look-ahead (roadmap R13/P0)
+- `gaussian` module: linear-Gaussian analogue of the model (drifting stored value and sensor
+  offset, target and reference reads, back-action on the drift); Kalman filter in Joseph form;
+  `solve_gaussian` (exact Bayes-optimal plan with STOP, optional retention limit),
+  `lookahead_plan` (receding horizon, depth 1 = greedy, depth 2 = two-step look-ahead),
+  `reference_plan` / `fixed_plan` (R8/R9 reference-slot baseline), `best_fixed_plan`,
+  `gaussian_table`. `scope = MODEL_INTERNAL_EXACT_LINEAR_GAUSSIAN` on every plan.
+- Independent oracle `tests/_gaussian_oracle.py`: batch information form in rational arithmetic.
+- Pre-registered grid: `docs/GAUSSIAN_PROTOCOL.md`, `scripts/gaussian_grid.py`,
+  `docs/GAUSSIAN_GRID_RESULTS.json` (G1–G3, G5, G6 confirmed; G4 refuted). Findings N-47–N-49.
+- CLI `gaussian --horizon H [--depth D] [--retention-limit δ]`; `reproduce --table gaussian`
+  (not part of `--table all`).
+- Mutants M46–M50.
+
 ### Added -- R33: self-review, observed-data intervals, pre-registered falsification
 - `likelihood_ratio_interval` / `likelihood_ratio_statistic` / `DataInterval`: likelihood-ratio
   (profile) intervals from OBSERVED outcome counts, next to the Wald interval; CLI `lr-interval
