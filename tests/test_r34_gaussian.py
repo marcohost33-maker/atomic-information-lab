@@ -356,3 +356,228 @@ def test_readme_table_matches_the_code():
         cells = [f"{r[k]:.7f}" for k in keys]
         line = f"| {h} | {cells[0]} | {', '.join(r['optimal_plan'])} | " + " | ".join(cells[1:]) + " |"
         assert line in text, line
+
+
+# ------------------------------------------------------------------ R34b self-review regressions
+def test_table_works_for_a_custom_catalogue():
+    """B1: the table used the default action names and crashed for any other catalogue."""
+    from atomic_information_lab.gaussian import model_reference_plan
+
+    rows = gaussian_table(ALT, max_horizon=3)
+    assert [r["reference_plan_sequence"] for r in rows][3] == ["ref", "slow", "ref"]
+    for r in rows:
+        assert r["optimal"] <= r["reference_plan"] + TOL
+    only_targets = replace(ALT, actions=(ALT.actions[0],))
+    assert model_reference_plan(only_targets, 2) == ("slow", "slow")
+
+
+def test_reproduce_accepts_the_gaussian_horizon_range(capsys):
+    """B2: '--max-horizon 8' was rejected by the discrete range check before the Gaussian branch."""
+    import json
+
+    from atomic_information_lab.__main__ import main
+
+    assert main(["reproduce", "--table", "gaussian", "--max-horizon", "8"]) == 0
+    assert len(json.loads(capsys.readouterr().out)["gaussian"]) == 9
+    assert main(["reproduce", "--table", "gaussian", "--max-horizon", "11"]) == 2
+    assert "0..10" in capsys.readouterr().err
+    assert main(["reproduce", "--table", "single", "--max-horizon", "8"]) == 2
+
+
+@pytest.mark.parametrize(
+    "mean, cov, damage",
+    [
+        ((0, 0, 0), ((-1, 0, 0), (0, 1, 0), (0, 0, 1)), 0.0),  # negative variance
+        ((0, 0, 0), ((1, 2, 0), (2, 1, 0), (0, 0, 1)), 0.0),  # indefinite 2x2 block
+        ((0, 0, 0), ((1, 0.9, 0.9), (0.9, 1, -0.9), (0.9, -0.9, 1)), 0.0),  # minors ok pairwise, det < 0
+        ((0, 0, 0), ((1, 0.5, 0), (0.4, 1, 0), (0, 0, 1)), 0.0),  # not symmetric
+        ((0, 0, float("nan")), ((1, 0, 0), (0, 1, 0), (0, 0, 1)), 0.0),
+        ((0, 0, 0), ((1, 0, 0), (0, 1, 0), (0, 0, 1)), -0.1),  # negative damage
+        ((0, 0), ((1, 0, 0), (0, 1, 0), (0, 0, 1)), 0.0),
+    ],
+)
+def test_invalid_states_are_rejected(mean, cov, damage):
+    """B3: a state with negative variance used to give a negative loss (-1.0)."""
+    from atomic_information_lab.gaussian import GaussianState
+
+    with pytest.raises(ValueError):
+        GaussianState(mean, cov, damage)
+
+
+def test_singular_states_of_the_model_are_accepted():
+    """The prior is singular (x = x0); every state the filter produces must pass validation."""
+    m = DEFAULT_GAUSSIAN_MODEL
+    for seq in sequences(m, 5):
+        st = initial_state(m)
+        for name in seq:
+            st = update(m, st, m.action(name), 0.3)
+    assert initial_state(m).cov[0][1] == m.prior_var
+
+
+def test_conditional_damage_depends_on_the_data_and_averages_to_the_damage():
+    """B4: 'pathwise and expected retention limits coincide' was false. The posterior damage
+    E[(x-x0)^2 | D] depends on y; only its data average is the deterministic damage."""
+    from atomic_information_lab.gaussian import conditional_damage
+
+    m = DEFAULT_GAUSSIAN_MODEL
+    f = m.action("fast")
+    vals = {y: conditional_damage(update(m, update(m, initial_state(m), f, y), f, -y)) for y in (-2.0, 0.0, 2.0)}
+    assert vals[2.0] > 3 * vals[0.0]
+    # law of total expectation, checked by simulation of the verbal model
+    rng = random.Random(51)
+    seq = ("fast", "fast", "reference", "precise")
+    n, acc = 20000, 0.0
+    damage = plan_value(m, seq).damage
+    for _ in range(n):
+        _x0, _x, ys = _simulate(m, seq, rng)
+        st = initial_state(m)
+        for name, y in zip(seq, ys, strict=True):
+            st = update(m, st, m.action(name), y)
+        acc += conditional_damage(st)
+    assert abs(acc / n - damage) < 0.02 * damage
+
+
+def test_cli_gaussian_objective_flags(capsys):
+    import json
+
+    from atomic_information_lab.__main__ import main
+
+    assert main(["gaussian", "--horizon", "4", "--alpha", "1.0", "--retention-weight", "2.0"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    m = replace(DEFAULT_GAUSSIAN_MODEL, objective=GaussianObjective(alpha=1.0, retention_weight=2.0))
+    assert out["optimal"]["value"] == pytest.approx(solve_gaussian(m, 4).value, abs=TOL)
+
+
+# ------------------------------------------------------------------ N-50: where adaptivity returns
+def _load_script(name):
+    import importlib.util
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location(name, root / "scripts" / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod, root
+
+
+def test_open_loop_sign_risk_closed_form_matches_simulation():
+    sa, _ = _load_script("sign_adaptivity")
+    m = DEFAULT_GAUSSIAN_MODEL
+    seq = ("fast", "reference")
+    rng = random.Random(7)
+    n, wrong = 20000, 0
+    for _ in range(n):
+        x0, _x, ys = _simulate(m, seq, rng)
+        st = initial_state(m)
+        for name, y in zip(seq, ys, strict=True):
+            st = update(m, st, m.action(name), y)
+        wrong += (st.mean[0] >= 0) != (x0 >= 0)
+    p = sa.open_loop_risk(m.prior_var, plan_value(m, seq).var_initial)
+    assert abs(wrong / n - p) < 4 * sqrt(p * (1 - p) / n)
+
+
+def test_sign_loss_makes_adaptivity_valuable_and_the_stored_figures_reproduce():
+    """N-50: with a 0-1 loss for the sign of x0 (same dynamics) the Bayes-optimal adaptive value
+    for h = 2 is strictly below the best fixed plan at every stored energy price; coarse
+    quadrature reproduces the stored fine values, and the gap exceeds the quadrature error."""
+    import json
+
+    sa, root = _load_script("sign_adaptivity")
+    stored = json.loads((root / "docs" / "SIGN_ADAPTIVITY.json").read_text(encoding="utf-8"))
+    for row in stored["rows"]:
+        lam = row["energy_lambda"]
+        m = replace(DEFAULT_GAUSSIAN_MODEL, objective=GaussianObjective(energy_lambda=lam))
+        coarse = sa.adaptive_value(m, lam, 200, 50)
+        assert coarse["value"] == pytest.approx(row["adaptive"]["value"], abs=2e-5)
+        ol = sa.open_loop_best(m, lam)
+        assert ol["value"] == pytest.approx(row["open_loop_best"]["value"], abs=1e-12)
+        gap = ol["value"] - row["adaptive"]["value"]
+        assert gap > 100 * max(row["quadrature_error_estimate"], 1e-9)
+        mc = row["monte_carlo_adaptive"]
+        assert abs(mc["value"] - row["adaptive"]["value"]) < 4 * mc["standard_error"]
+    assert [r["relative_gain"] > 0 for r in stored["rows"]] == [True, True, True]
+
+
+def test_quadratic_loss_keeps_adaptivity_worthless_in_the_same_setting():
+    """Control for N-50: the same h = 2 problem with the variance loss has adaptive = open-loop
+    (N-47), so the gap above comes from the loss, not from the dynamics."""
+    m = replace(DEFAULT_GAUSSIAN_MODEL, objective=GaussianObjective(alpha=1.0, energy_lambda=0.036))
+    best_open = min(plan_value(m, s).value for s in sequences(m, 2))
+    assert solve_gaussian(m, 2).value == pytest.approx(best_open, abs=TOL)
+
+
+# ------------------------------------------------------------------ R34 chain in the fail-closed verifier
+def _git_available():
+    import shutil
+
+    return shutil.which("git") is not None
+
+
+@pytest.mark.skipif(
+    not _git_has(REGISTRATION), reason="needs git history with the R34 registration (CI: fetch-depth 0)"
+)
+def test_verifier_passes_every_registered_chain():
+    vp, root = _load_script("verify_preregistration")
+    for chain in ("r29", "r33", "r34"):
+        rep = vp.verify_chain(root, chain)
+        assert rep["all_pass"], (chain, {k: v["pass"] for k, v in rep["checks"].items()})
+    assert vp.verify_chain(root, "r34")["checks"]["C5_setting_matches_protocol"]["results"]["points"] == 27
+    assert vp.verify_chain(root, "r33")["not_checked"]  # stated, not counted as a pass
+
+
+def _fabricate(tmp, steps):
+    import os
+    import subprocess
+
+    env = {
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@example.invalid",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@example.invalid",
+        "PATH": os.environ["PATH"],
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+    }
+    subprocess.run(["git", "init", "-q", str(tmp)], check=True, env=env)
+    shas = []
+    for files in steps:
+        for rel, text in files.items():
+            p = tmp / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(text, encoding="utf-8")
+        subprocess.run(["git", "-C", str(tmp), "add", "-A"], check=True, env=env)
+        subprocess.run(["git", "-C", str(tmp), "commit", "-q", "-m", "s"], check=True, env=env)
+        out = subprocess.run(["git", "-C", str(tmp), "rev-parse", "HEAD"], capture_output=True, text=True, env=env)
+        shas.append(out.stdout.strip())
+    return shas
+
+
+def _r34_fixture(root):
+    import json
+
+    proto = (root / "docs" / "GAUSSIAN_PROTOCOL.md").read_text(encoding="utf-8")
+    proto = proto[: proto.index("\n## Deviations")] + "\n## Deviations\n\n(none yet)\n"
+    res = json.loads((root / "docs" / "GAUSSIAN_GRID_RESULTS.json").read_text(encoding="utf-8"))
+    return proto, res
+
+
+@pytest.mark.skipif(not _git_available(), reason="needs git")
+@pytest.mark.parametrize("broken", ["none", "results_with_protocol", "frozen_edit", "grid_mismatch", "runner_edit"])
+def test_r34_chain_negative_controls(tmp_path, broken):
+    import json
+
+    vp, root = _load_script("verify_preregistration")
+    proto, res = _r34_fixture(root)
+    P, R, S = "docs/GAUSSIAN_PROTOCOL.md", "docs/GAUSSIAN_GRID_RESULTS.json", "scripts/gaussian_grid.py"
+    good_res = json.dumps(res)
+    steps = {
+        "none": [{P: proto, S: "x = 1\n"}, {R: good_res, P: proto + "\n## Outcome\n\nok\n"}],
+        "results_with_protocol": [{P: proto, S: "x = 1\n", R: good_res}],
+        "frozen_edit": [{P: proto, S: "x = 1\n"}, {R: good_res, P: proto.replace("h = 6", "h = 5", 1)}],
+        "grid_mismatch": [{P: proto, S: "x = 1\n"}, {R: json.dumps({**res, "rows": res["rows"][:-1]})}],
+        "runner_edit": [{P: proto, S: "x = 1\n"}, {R: good_res, S: "x = 2\n"}],
+    }[broken]
+    shas = _fabricate(tmp_path, steps)
+    c = vp.CHAINS["r34"]
+    rep = vp.verify(tmp_path, shas[0], "HEAD", c["protocol"], c["results"], c["setting"])
+    assert rep["all_pass"] is (broken == "none"), {k: v["pass"] for k, v in rep["checks"].items()}

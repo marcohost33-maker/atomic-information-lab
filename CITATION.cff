@@ -5,6 +5,8 @@ type: software
 authors:
   - name: "Coworker Research / Coworkerz"
 version: 0.1.0
+date-released: "2026-11-22"
+repository-code: "https://github.com/marcohost33-maker/atomic-information-lab"
 license: Apache-2.0
 abstract: >-
   Small dependency-free Python reference for Bayes-optimal adaptive measurement

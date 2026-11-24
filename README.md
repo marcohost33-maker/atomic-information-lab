@@ -1,8 +1,8 @@
 # atomic-information-lab
 
 Exact value-of-information and optional stopping in a **synthetic, discrete
-two-state measurement model** — a small, dependency-free Python reference with an
-independent test oracle.
+two-state measurement model** (plus a linear-Gaussian analogue, `gaussian.py`) — a
+small, dependency-free Python reference with independent test oracles.
 
 > **Claim boundary.** Everything here is mathematics inside an *assumed*
 > classical model. The parameters are invented, not calibrated against any
@@ -457,12 +457,22 @@ sensor offset `b` drifts, a target read sees `x + b + noise`, a reference read `
 Loss: `α·Var(x0|D) + (1−α)·Var(x|D) + β_ret·E[(x−x0)²]` plus `λ·E_a` per reading; prior
 variance 1/4, so the loss before any reading is 0.25 as in the discrete model.
 
-**Adaptivity is worth exactly zero here.** The Kalman covariance does not depend on the data,
-so the Bayes-optimal policy with STOP is an open-loop plan computed in advance (Meier, Peschon
-& Dressler 1967, doi:10.1109/TAC.1967.1098668). The discrete model's 9.6 % adaptive gain
-(`h = 5`) is therefore a property of its non-Gaussian structure (binary state, unknown
-inversion), and the R8/R9 null result was structurally guaranteed for its model class, not a
-question of sample size (N-47). The same fact gives this line its exact oracle:
+**Adaptivity is worth exactly zero here -- under three conditions** (N-47): linear-Gaussian
+dynamics and readings, known parameters, and a loss that depends on the data only through the
+posterior covariance (as the variance loss above does). Then the Kalman covariance does not
+depend on the data and the Bayes-optimal policy with STOP is an open-loop plan computed in
+advance (Meier, Peschon & Dressler 1967, doi:10.1109/TAC.1967.1098668; no dual effect,
+Bar-Shalom & Tse 1974, doi:10.1109/TAC.1974.1100635). The third condition is what matters
+most: with the **same dynamics** but a 0-1 loss for the sign of `x0`, the terminal risk
+`Φ(−|m|/√v)` depends on the posterior mean, and the Bayes-optimal adaptive policy (`h = 2`)
+beats the best fixed plan by 0.08 %, 0.50 % and 2.33 % at `λ = 0.004, 0.012, 0.036` (N-50,
+`scripts/sign_adaptivity.py`, exploratory; quadrature error ≤ 9e-7, Monte-Carlo check of the
+adaptive values). So the discrete model's 9.6 % adaptive gain is not explained by
+"non-Gaussian dynamics" alone: its Brier loss `p(1−p)` depends on the posterior itself. Whether
+the R9 null result has this cause cannot be checked here (the R9 code is not in this
+repository); note that in this model class the difference between an online rule and a fixed
+plan is a deterministic number, computable exactly. The covariance fact gives this line its
+exact oracle:
 `tests/_gaussian_oracle.py` recomputes every posterior by batch least squares in rational
 arithmetic (no Kalman recursion), agreement ≤ 1e-12; a generative simulation checks the
 reported variance against the empirical error, with a negative control that it can fail.
@@ -479,8 +489,8 @@ Default point (`python -m atomic_information_lab reproduce --table gaussian`):
 Pre-registered grid (`docs/GAUSSIAN_PROTOCOL.md`, committed before the run; 27 points of
 offset prior × drift × energy price, `h = 6`; `docs/GAUSSIAN_GRID_RESULTS.json`):
 
-* **Look-ahead depth is not monotone** (G2 confirmed): the two-step rule is worse than the greedy
-  rule at 11 of 27 points; on average it is closer to the optimum (3.1 % vs 4.0 %, G3), but its
+* **Look-ahead depth is not monotone** (G2 confirmed; compare the "lookahead pathology" of game
+  search, Nau 1983): the two-step rule is worse than the greedy rule at 11 of 27 points; on average it is closer to the optimum (3.1 % vs 4.0 %, G3), but its
   worst case is 11.8 % above the optimum -- the registered bound of 10 % is **refuted** (G4).
   Greedy's worst case is 40.6 %. Neither heuristic dominates (N-48).
 * The fixed reference plan `reference, fast, reference, …` is at least 5 % above the optimum at
@@ -490,11 +500,15 @@ offset prior × drift × energy price, `h = 6`; `docs/GAUSSIAN_GRID_RESULTS.json
   read after it (bracketing); in 10 of the 15 points where the two-step rule loses, it reads the
   reference first, and in 7 it uses the same readings as the optimum in a worse order (N-49).
 
-Practical consequence inside this model class: the exact plan costs `|A|^h` covariance updates
-(729 for `h = 6`, milliseconds), so there is no reason to use either heuristic. A retention
-limit `E[(x−x0)²] ≤ δ` is available (`retention_limit`); because the damage is data-independent,
-its pathwise and expected readings coincide. CLI: `gaussian --horizon 6 [--depth 2]
-[--retention-limit δ]`. Every figure carries `scope = MODEL_INTERNAL_EXACT_LINEAR_GAUSSIAN`.
+Practical consequence inside this model class: the exact search costs `Σ_k |A|^k` covariance
+updates (1 092 for three actions and `h = 6`, about 0.03 s; `h = 10`: about 2.6 s), so there is no
+reason to use either heuristic. A retention limit on the data-averaged damage
+`E[(x−x0)²] ≤ δ` is available (`retention_limit`, the expected reading of F29). It is **not** a
+pathwise limit: the posterior damage `E[(x−x0)²|D]` (`conditional_damage`) depends on the data
+(e.g. 0.037 or 0.149 after the same two readings) and is unbounded under Gaussian tails, so a
+hard pathwise version would admit only readings that carry no information about `x − x0`
+(N-51). CLI: `gaussian --horizon 6 [--depth 2] [--retention-limit δ] [--alpha a]
+[--retention-weight w]`. Every figure carries `scope = MODEL_INTERNAL_EXACT_LINEAR_GAUSSIAN`.
 
 ## How it is verified
 
@@ -628,7 +642,7 @@ From section 13.1 of the R1–R12 report (2026-10-18):
 | R29-02 | Separate outputs Bayes risk / MI(X0;Y) / P(X_T≠X0) / energy / steps | **done** (`metrics.py`, oracle-verified; finding N-32; same-family, cross-family review pending) |
 | R29-03 | Pareto list in `design_search` instead of a single D-optimal winner | **done** (`design_pareto`, Fisher spectrum on every report; findings N-33, N-34; same-family, cross-family review pending) |
 | R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | **done** (`likelihood_profile.py`: expected-data profiles, observed-data LR intervals; LR coverage measured pre-registered; findings N-36–N-45; same-family) |
-| R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | **done** (`gaussian.py`: exact open-loop optimum with STOP, rational batch oracle; pre-registered grid G1–G6, G4 refuted; findings N-47–N-49; same-family, cross-family review pending) |
+| R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | **done** (`gaussian.py`: exact open-loop optimum with STOP, rational batch oracle; pre-registered grid G1–G6, G4 refuted; findings N-47–N-51 incl. self-review R34b; same-family, cross-family review pending) |
 | R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |
 | R15 / P2 | Laboratory integration (STM/AFM raw data); Hexa-NTK / CodeFactory adapters | open, outside this repository |
 

@@ -408,6 +408,22 @@ MUTANTS = {
         "the receding-horizon rule executes the last action of its plan instead of the first (R34)",
         {GAUSS: "relation"},
     ),
+    "M51_gauss_state_det_unchecked": (
+        GAUSS_FILE,
+        "            or det < -tol * scale**3\n",
+        "",
+        "GaussianState accepts a matrix whose principal 1x1 and 2x2 minors are fine but whose "
+        "determinant is negative (R34b defect 3)",
+        {GAUSS: "relation"},
+    ),
+    "M52_gauss_table_default_names": (
+        GAUSS_FILE,
+        "        ref = fixed_plan(model, model_reference_plan(model, h))",
+        "        ref = fixed_plan(model, reference_plan(h))",
+        "the table's reference plan uses the default action names regardless of the catalogue (R34b defect 1); "
+        "caught as a guard: the unknown action name raises ValueError, exactly how the defect showed",
+        {GAUSS: "guard"},
+    ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")
 _GUARD_ERRORS = ("ValueError", "ArithmeticError", "ZeroDivisionError", "OverflowError", "FloatingPointError")

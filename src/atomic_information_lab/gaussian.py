@@ -25,21 +25,33 @@ Terminal loss (expected squared error of the posterior-mean estimates, plus a re
     L = alpha * Var(x0 | D) + (1 - alpha) * Var(x | D) + retention_weight * E[(x - x0)^2]
 
 ``E[(x - x0)^2] = drift_var * sum(backaction)`` is the damage the readings did to the stored
-value; it is averaged over the data, exactly like the expected retention term of the discrete
-planner. Every reading costs ``energy_lambda * energy``.
+value, averaged over the data (the expected retention term of the discrete planner). Its
+posterior counterpart ``E[(x - x0)^2 | D] = Var(x - x0 | D) + E[x - x0 | D]^2``
+(``conditional_damage``) depends on the data; its data average is the damage above. Every
+reading costs ``energy_lambda * energy``.
 
-Why this line has an exact oracle
----------------------------------
-The Kalman covariance recursion does not depend on the observed values, and the loss depends
-on the data only through that covariance. Hence the conditional value of every continuation
-is the same for every data set: the Bayes-optimal *adaptive* policy with STOP is an open-loop
-plan "measure ``a_1 .. a_n``, then stop", found by a deterministic Bellman recursion over
-covariances (measurement control can be optimised a priori: Meier, Peschon & Dressler 1967,
-doi:10.1109/TAC.1967.1098668; tree search over schedules: Vitus et al., Automatica 2012).
-Consequence: in this model class adaptivity is worth exactly zero, whereas in the discrete
-model it is worth 9.6 % at ``h = 5`` (finding N-47). The independent oracle
-``tests/_gaussian_oracle.py`` recomputes every posterior in exact rational arithmetic by
-batch least squares (information form over the noise sequence), sharing no code with this file.
+Why this line has an exact oracle -- and where that stops
+--------------------------------------------------------
+Three conditions together: (i) linear-Gaussian dynamics and readings, (ii) known parameters,
+(iii) a terminal loss that depends on the data only through the posterior covariance (here:
+posterior variances and the data-averaged damage). Then the Kalman covariance does not depend
+on the observed values, the conditional value of every continuation is the same for every data
+set, and the Bayes-optimal *adaptive* policy with STOP is an open-loop plan "measure
+``a_1 .. a_n``, then stop", found by a deterministic Bellman recursion over covariances
+(measurement control can be optimised a priori: Meier, Peschon & Dressler 1967,
+doi:10.1109/TAC.1967.1098668; no dual effect: Bar-Shalom & Tse 1974,
+doi:10.1109/TAC.1974.1100635). Under these conditions the value of adaptivity is exactly zero
+(finding N-47). Drop (iii) and it returns: with a 0-1 loss for the sign of ``x0`` the
+terminal risk ``Phi(-|m| / sqrt(v))`` depends on the posterior mean, and a stopping rule that
+looks at the data beats every fixed plan (finding N-50). A retention limit on the posterior
+damage ``conditional_damage`` would also be data-dependent; the limit implemented here
+(``retention_limit``) is on the data-averaged damage only. Dropping (ii) (unknown variances)
+breaks the linearity of the posterior.
+
+The independent oracle ``tests/_gaussian_oracle.py`` recomputes every posterior in exact
+rational arithmetic by batch least squares (information form over the noise sequence), sharing
+no code with this file. Cost of the exact search: ``sum_k |A|^k`` covariance updates
+(1 092 for three actions and ``h = 6``, about 0.03 s; ``h = 10``: about 2.6 s).
 
 Every figure carries ``scope = GAUSSIAN_SCOPE``: exact inside the assumed linear-Gaussian
 model, up to floating-point rounding; model error is not quantified.
@@ -67,10 +79,12 @@ __all__ = [
     "predict",
     "update",
     "terminal_loss",
+    "conditional_damage",
     "solve_gaussian",
     "plan_value",
     "lookahead_plan",
     "reference_plan",
+    "model_reference_plan",
     "fixed_plan",
     "best_fixed_plan",
     "gaussian_table",
@@ -172,13 +186,54 @@ class GaussianModel:
 DEFAULT_GAUSSIAN_MODEL = GaussianModel()
 
 
+_PSD_TOL = 1e-12
+
+
 @dataclass(frozen=True)
 class GaussianState:
-    """Posterior ``N(mean, cov)`` over ``(x0, x, b)`` plus the accumulated drift variance ``E[(x-x0)^2]``."""
+    """Posterior ``N(mean, cov)`` over ``(x0, x, b)`` plus the accumulated drift variance ``E[(x-x0)^2]``.
+
+    Validated on construction (fail-closed): a finite 3-vector, a finite symmetric positive
+    semi-definite 3x3 matrix (every principal minor >= -1e-12 relative to the scale of the
+    diagonal), and ``damage >= 0``. Sequences are stored as tuples.
+    """
 
     mean: tuple[float, float, float]
     cov: Matrix
     damage: float = 0.0
+
+    def __post_init__(self) -> None:
+        try:
+            mean = tuple(self.mean)
+            cov = tuple(tuple(r) for r in self.cov)
+        except TypeError as exc:
+            raise ValueError("state must hold a 3-vector and a 3x3 matrix") from exc
+        if len(mean) != 3 or len(cov) != 3 or any(len(r) != 3 for r in cov):
+            raise ValueError("state must hold a 3-vector and a 3x3 matrix")
+        if not _finite(*mean, *(c for r in cov for c in r), self.damage):
+            raise ValueError("state entries must be finite real numbers")
+        if self.damage < 0:
+            raise ValueError("damage must be >= 0")
+        scale = max(abs(cov[i][i]) for i in range(3))
+        if any(abs(cov[i][j] - cov[j][i]) > _PSD_TOL * max(scale, 1.0) for i in range(3) for j in range(i)):
+            raise ValueError("covariance must be symmetric")
+        tol = _PSD_TOL
+        minors1 = [cov[i][i] for i in range(3)]
+        minors2 = [cov[i][i] * cov[j][j] - cov[i][j] * cov[j][i] for i in range(3) for j in range(i + 1, 3)]
+        det = (
+            cov[0][0] * (cov[1][1] * cov[2][2] - cov[1][2] * cov[2][1])
+            - cov[0][1] * (cov[1][0] * cov[2][2] - cov[1][2] * cov[2][0])
+            + cov[0][2] * (cov[1][0] * cov[2][1] - cov[1][1] * cov[2][0])
+        )
+        if (
+            min(minors1) < -tol * scale
+            or min(minors2) < -tol * scale**2
+            or det < -tol * scale**3
+            or (scale == 0 and min(minors1) < 0)
+        ):
+            raise ValueError("covariance must be positive semi-definite")
+        object.__setattr__(self, "mean", mean)
+        object.__setattr__(self, "cov", cov)
 
 
 def initial_state(model: GaussianModel) -> GaussianState:
@@ -187,11 +242,9 @@ def initial_state(model: GaussianModel) -> GaussianState:
 
 
 def _check_state(state: GaussianState) -> None:
+    # contents are validated by GaussianState itself; only the type is checked here
     if type(state) is not GaussianState:
         raise ValueError("state must be a GaussianState")
-    flat = (*state.mean, *(c for row in state.cov for c in row), state.damage)
-    if len(state.mean) != 3 or len(state.cov) != 3 or any(len(r) != 3 for r in state.cov) or not _finite(*flat):
-        raise ValueError("state must hold a finite 3-vector and a finite 3x3 matrix")
 
 
 def predict(model: GaussianModel, state: GaussianState, action: GaussianAction) -> GaussianState:
@@ -252,6 +305,22 @@ def terminal_loss(model: GaussianModel, state: GaussianState) -> float:
     if not isfinite(loss):
         raise ArithmeticError("non-finite terminal loss")
     return loss
+
+
+def conditional_damage(state: GaussianState) -> float:
+    """Posterior expected damage ``E[(x - x0)^2 | D] = Var(x - x0 | D) + E[x - x0 | D]^2``.
+
+    Data-dependent (through the posterior mean), unlike ``state.damage``, which is its average
+    over the data. Not used by the planner; see the module docstring.
+    """
+    _check_state(state)
+    c = state.cov
+    var = c[1][1] + c[0][0] - 2.0 * c[0][1]
+    diff = state.mean[1] - state.mean[0]
+    out = max(var, 0.0) + diff * diff
+    if not isfinite(out):
+        raise ArithmeticError("non-finite conditional damage")
+    return out
 
 
 def _step_cost(model: GaussianModel, action: GaussianAction) -> float:
@@ -332,10 +401,12 @@ def solve_gaussian(
 ) -> GaussianPlan:
     """Bayes-optimal policy with STOP (an open-loop plan, see the module docstring).
 
-    ``retention_limit`` (``delta``): a reading is admissible only if ``E[(x - x0)^2]`` stays
-    ``<= delta`` afterwards; because the damage is data-independent, the pathwise and the
-    expected reading of the limit coincide here. Ties within ``1e-12``: STOP first, then
-    catalogue order.
+    ``retention_limit`` (``delta``): a reading is admissible only if the data-averaged damage
+    ``E[(x - x0)^2]`` stays ``<= delta`` afterwards (the *expected* reading of the limit, F29 in
+    the discrete line). It is not a pathwise limit: the posterior damage
+    ``conditional_damage`` depends on the data and is unbounded under Gaussian tails, so a hard
+    pathwise version would admit only readings that carry no information about ``x - x0``
+    (finding N-51). Ties within ``1e-12``: STOP first, then catalogue order.
     """
     _check_horizon(horizon)
     _check_limit(retention_limit)
@@ -411,6 +482,19 @@ def best_fixed_plan(model: GaussianModel, horizon: int) -> GaussianPlan:
     return plan_value(model, seq)
 
 
+def model_reference_plan(model: GaussianModel, horizon: int) -> tuple[str, ...]:
+    """``reference_plan`` with the model's own first reference and first target action.
+
+    A catalogue without a reference action gives a target-only plan and vice versa.
+    """
+    _check_horizon(horizon)
+    refs = [a.name for a in model.actions if a.reads_reference]
+    targets = [a.name for a in model.actions if not a.reads_reference]
+    if not refs or not targets:
+        return ((refs or targets)[0],) * horizon
+    return reference_plan(horizon, target=targets[0], reference=refs[0])
+
+
 def gaussian_table(model: GaussianModel = DEFAULT_GAUSSIAN_MODEL, max_horizon: int = 8) -> list[dict]:
     """Optimum vs. two-step look-ahead vs. greedy vs. fixed reference plan, ``h = 0..max_horizon``."""
     _check_horizon(max_horizon)
@@ -420,7 +504,7 @@ def gaussian_table(model: GaussianModel = DEFAULT_GAUSSIAN_MODEL, max_horizon: i
         two = lookahead_plan(model, h, 2)
         greedy = lookahead_plan(model, h, 1)
         forced = best_fixed_plan(model, h)
-        ref = fixed_plan(model, reference_plan(h))
+        ref = fixed_plan(model, model_reference_plan(model, h))
         rows.append(
             {
                 "horizon": h,

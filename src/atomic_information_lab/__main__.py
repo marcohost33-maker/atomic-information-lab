@@ -67,6 +67,8 @@ def _build_parser() -> argparse.ArgumentParser:
     gp.add_argument("--bias-prior-var", type=_finite_float, default=0.25)
     gp.add_argument("--drift-var", type=_finite_float, default=0.02)
     gp.add_argument("--energy-lambda", type=_finite_float, default=0.012)
+    gp.add_argument("--alpha", type=_finite_float, default=0.5)
+    gp.add_argument("--retention-weight", type=_finite_float, default=0.0)
     gp.add_argument("--retention-limit", type=_finite_float, default=None, help="limit on E[(x - x0)^2]")
     sp = sub.add_parser("solve", help="solve one single-model instance")
     sp.add_argument("--horizon", type=int, required=True)
@@ -304,7 +306,7 @@ def _gaussian(args) -> dict:
         GaussianObjective,
         fixed_plan,
         lookahead_plan,
-        reference_plan,
+        model_reference_plan,
         solve_gaussian,
     )
 
@@ -312,14 +314,16 @@ def _gaussian(args) -> dict:
         DEFAULT_GAUSSIAN_MODEL,
         bias_prior_var=args.bias_prior_var,
         drift_var=args.drift_var,
-        objective=GaussianObjective(energy_lambda=args.energy_lambda),
+        objective=GaussianObjective(
+            alpha=args.alpha, energy_lambda=args.energy_lambda, retention_weight=args.retention_weight
+        ),
     )
     opt = solve_gaussian(m, args.horizon, retention_limit=args.retention_limit)
     look = lookahead_plan(m, args.horizon, args.depth, retention_limit=args.retention_limit)
     out = {"horizon": args.horizon, "optimal": dataclasses.asdict(opt), "lookahead": dataclasses.asdict(look)}
     out["lookahead"]["depth"] = args.depth
     if args.retention_limit is None:
-        out["reference_plan"] = dataclasses.asdict(fixed_plan(m, reference_plan(args.horizon)))
+        out["reference_plan"] = dataclasses.asdict(fixed_plan(m, model_reference_plan(m, args.horizon)))
     return out
 
 
@@ -327,7 +331,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
         if args.command == "reproduce":
-            if args.max_horizon is not None and not 0 <= args.max_horizon <= MAX_HORIZON:
+            # the Gaussian table has its own horizon range (checked below); every other table is discrete
+            if args.table != "gaussian" and args.max_horizon is not None and not 0 <= args.max_horizon <= MAX_HORIZON:
                 raise ValueError("--max-horizon out of range")
             out = {}
             single_h = 5 if args.max_horizon is None else args.max_horizon
@@ -353,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
 
                 gh = 8 if args.max_horizon is None else args.max_horizon
                 if not 0 <= gh <= MAX_GAUSSIAN_HORIZON:
-                    raise ValueError("--max-horizon out of range")
+                    raise ValueError(f"--max-horizon out of range (Gaussian table: 0..{MAX_GAUSSIAN_HORIZON})")
                 out["gaussian"] = gaussian_table(max_horizon=gh)
         elif args.command == "identify":
             out = _identify(args)
@@ -393,7 +398,8 @@ def main(argv: list[str] | None = None) -> int:
                 out["profile"] = dataclasses.asdict(prof)
     except (ValueError, ArithmeticError, OSError) as exc:
         calibration_commands = ("identify", "designs", "profile-likelihood", "lr-interval", "gaussian")
-        hint = "" if args.command in calibration_commands else f" (horizon range 0..{MAX_HORIZON})"
+        own_range = args.command in calibration_commands or getattr(args, "table", None) == "gaussian"
+        hint = "" if own_range else f" (horizon range 0..{MAX_HORIZON})"
         print(f"error: {exc}{hint}", file=sys.stderr)
         return 2
     print(json.dumps(out, indent=2))

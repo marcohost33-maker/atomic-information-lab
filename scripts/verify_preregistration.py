@@ -1,11 +1,14 @@
 """Check the evidence chain of a pre-registered run from git history alone (R30, AIL-03 / AIL4-04).
 
 Usage:
-    python scripts/verify_preregistration.py [--repo DIR] [--prereg COMMIT] [--head REV]
+    python scripts/verify_preregistration.py [--repo DIR] [--chain r29|r33|r34|all] [--head REV]
+    python scripts/verify_preregistration.py [--repo DIR] [--prereg COMMIT] [--head REV]   (R29 files)
 
-Defaults are the R29 P1 run: protocol ``docs/ESTIMATOR_PROTOCOL.md`` registered in
-``1097c2d``, results ``docs/ESTIMATOR_CALIBRATION_RESULTS.json``. Prints a JSON report
-and exits 0 only if every check passes.
+Chains (R34b): ``r29`` (default; protocol ``docs/ESTIMATOR_PROTOCOL.md`` registered in
+``1097c2d``), ``r33`` (``docs/PL_FALSIFICATION_PROTOCOL.md``, runner registered in ``01048a6``)
+and ``r34`` (``docs/GAUSSIAN_PROTOCOL.md``, registered in ``f1eb353``); ``all`` checks every
+chain. C5 is chain-specific; for ``r33`` it is not implemented and listed under ``not_checked``
+instead of being counted as a pass. Prints a JSON report and exits 0 only if every check passes.
 
 What git can show, and is checked here:
 
@@ -112,7 +115,89 @@ def results_setting(results: dict) -> dict:
     }
 
 
-def verify(repo: Path, prereg: str, head: str = "HEAD", protocol: str = PROTOCOL, results: str = RESULTS) -> dict:
+def r34_protocol_setting(text: str) -> dict:
+    """Grid and horizon of the R34 protocol (parsed from the frozen part)."""
+    frozen = _frozen(text)
+    if frozen is None:
+        raise ValueError("protocol has no '## Deviations' heading")
+
+    def values(param: str) -> list[float]:
+        m = re.search(rf"\| `{param}` \| ([^|]+) \|", frozen)
+        if not m:
+            raise ValueError(f"protocol grid row not found: {param}")
+        return sorted(float(x) for x in m.group(1).split(","))
+
+    h = re.search(r"horizon `h = (\d+)`", frozen)
+    if not h:
+        raise ValueError("protocol horizon not found")
+    grid = {p: values(p) for p in ("bias_prior_var", "drift_var", "energy_lambda")}
+    return {
+        "grid": grid,
+        "horizon": int(h.group(1)),
+        "points": len(grid["bias_prior_var"]) * len(grid["drift_var"]) * len(grid["energy_lambda"]),
+    }
+
+
+def r34_results_setting(results: dict) -> dict:
+    rows = results["rows"]
+    grid = {p: sorted({r[p] for r in rows}) for p in ("bias_prior_var", "drift_var", "energy_lambda")}
+    points = {(r["bias_prior_var"], r["drift_var"], r["energy_lambda"]) for r in rows}
+    return {"grid": grid, "horizon": results["horizon"], "points": len(rows), "distinct_points": len(points)}
+
+
+def _c5_r29(proto_pre: str | None, results_text: str | None) -> dict:
+    want = protocol_setting(proto_pre or "")
+    got = results_setting(json.loads(results_text or "{}"))
+    n = len(want["sessions"])
+    return {
+        "pass": got["sessions"] == want["sessions"]
+        and got["replications"] == [want["replications"]]
+        and got["seeds"] == [want["seed_base"] + i for i in range(n)]
+        and got["start_offset"] == [want["start_offset"]]
+        and got["design"] == [want["design"]]
+        and got["known_write"] == [want["known_write"]],
+        "protocol": {**want, "design": list(want["design"])},
+        "results": {**got, "design": [list(d) for d in got["design"]]},
+    }
+
+
+def _c5_r34(proto_pre: str | None, results_text: str | None) -> dict:
+    want = r34_protocol_setting(proto_pre or "")
+    got = r34_results_setting(json.loads(results_text or "{}"))
+    return {
+        "pass": got["grid"] == want["grid"]
+        and got["horizon"] == want["horizon"]
+        and got["points"] == got["distinct_points"] == want["points"],
+        "protocol": want,
+        "results": got,
+    }
+
+
+CHAINS = {
+    "r29": {"prereg": PREREG, "protocol": PROTOCOL, "results": RESULTS, "setting": _c5_r29},
+    "r33": {
+        "prereg": "01048a6",
+        "protocol": "docs/PL_FALSIFICATION_PROTOCOL.md",
+        "results": "docs/PL_FALSIFICATION_RESULTS.json",
+        "setting": None,
+    },
+    "r34": {
+        "prereg": "f1eb353",
+        "protocol": "docs/GAUSSIAN_PROTOCOL.md",
+        "results": "docs/GAUSSIAN_GRID_RESULTS.json",
+        "setting": _c5_r34,
+    },
+}
+
+
+def verify(
+    repo: Path,
+    prereg: str,
+    head: str = "HEAD",
+    protocol: str = PROTOCOL,
+    results: str = RESULTS,
+    setting=_c5_r29,
+) -> dict:
     checks: dict[str, dict] = {}
     pre = _git(repo, "rev-parse", "--verify", f"{prereg}^{{commit}}").strip()
     head_sha = _git(repo, "rev-parse", "--verify", f"{head}^{{commit}}").strip()
@@ -158,25 +243,17 @@ def verify(repo: Path, prereg: str, head: str = "HEAD", protocol: str = PROTOCOL
         "other_files_changed_before_results": changed_other,
     }
 
-    c5 = {"pass": False}
-    try:
-        want = protocol_setting(proto_pre or "")
-        got = results_setting(json.loads(_show(repo, res_commit, results) or "{}")) if res_commit else None
-        if got is not None:
-            n = len(want["sessions"])
-            c5 = {
-                "pass": got["sessions"] == want["sessions"]
-                and got["replications"] == [want["replications"]]
-                and got["seeds"] == [want["seed_base"] + i for i in range(n)]
-                and got["start_offset"] == [want["start_offset"]]
-                and got["design"] == [want["design"]]
-                and got["known_write"] == [want["known_write"]],
-                "protocol": {**want, "design": list(want["design"])},
-                "results": {**got, "design": [list(d) for d in got["design"]]},
-            }
-    except (ValueError, KeyError, TypeError) as exc:
-        c5 = {"pass": False, "error": str(exc)}
-    checks["C5_setting_matches_protocol"] = c5
+    not_checked = []
+    if setting is None:
+        not_checked.append("C5_setting_matches_protocol: no setting parser for this chain")
+    else:
+        c5 = {"pass": False}
+        try:
+            if res_commit:
+                c5 = setting(proto_pre, _show(repo, res_commit, results))
+        except (ValueError, KeyError, TypeError) as exc:
+            c5 = {"pass": False, "error": str(exc)}
+        checks["C5_setting_matches_protocol"] = c5
 
     return {
         "schema": "ail-preregistration-check-v1",
@@ -186,18 +263,37 @@ def verify(repo: Path, prereg: str, head: str = "HEAD", protocol: str = PROTOCOL
         "results": results,
         "checks": checks,
         "all_pass": all(c["pass"] for c in checks.values()),
+        "not_checked": not_checked,
         "limits": list(LIMITS),
     }
+
+
+def verify_chain(repo: Path, chain: str, head: str = "HEAD") -> dict:
+    c = CHAINS[chain]
+    return {"chain": chain, **verify(repo, c["prereg"], head, c["protocol"], c["results"], c["setting"])}
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--repo", default=str(Path(__file__).resolve().parents[1]))
-    ap.add_argument("--prereg", default=PREREG)
+    ap.add_argument("--prereg", default=None, help="registration commit for the R29 files (legacy form)")
+    ap.add_argument("--chain", choices=(*CHAINS, "all"), default=None)
     ap.add_argument("--head", default="HEAD")
     args = ap.parse_args(argv)
+    if args.prereg is not None and args.chain is not None:
+        ap.error("--prereg and --chain are exclusive")
     try:
-        report = verify(Path(args.repo), args.prereg, args.head)
+        if args.chain == "all":
+            reports = [verify_chain(Path(args.repo), c, args.head) for c in CHAINS]
+            report = {
+                "schema": "ail-preregistration-check-v1",
+                "chains": reports,
+                "all_pass": all(r["all_pass"] for r in reports),
+            }
+        elif args.chain is not None:
+            report = verify_chain(Path(args.repo), args.chain, args.head)
+        else:
+            report = verify(Path(args.repo), args.prereg or PREREG, args.head)
     except GitError as exc:
         print(json.dumps({"schema": "ail-preregistration-check-v1", "all_pass": False, "error": str(exc)}))
         return 2

@@ -14,10 +14,10 @@ synthetic classical models only.
 | R10 | Brier-aligned one-step selection; exact finite-horizon oracle for an 8-state discrete model, **without** a STOP action; 17 tests | discrete oracle superseded by `planner.solve(allow_stop=False)` |
 | R11 | exact Bellman recursion with STOP; best fixed sequence, greedy rule; 12 tests | core of `planner` |
 | R12 | finite set of static model hypotheses, retention penalty, reference back-action variants; 12 tests | merged into `Problem` (one code path for one or several hypotheses) |
-| 0.1.0 | consolidation, independent oracle, fail-closed fixes (rate overflow, NaN-safe mass guard), mutation probes | this repository |
-| R13 (P0, part) | hard retention limit `P(x_t != x0) <= delta` (pathwise and expected, F29) | `retention.py` (unreleased) |
-| R13 (P0, part) | experimental identifiability: Fisher rank, exact witnesses, Cramér–Rao session counts, design search | `identifiability.py` (unreleased) |
-| R13 (P0, part) / R34 | continuous line revisited: linear-Gaussian analogue with an exact oracle; adaptivity provably worth zero there, which explains the R9 null result | `gaussian.py` (unreleased) |
+| 0.1.0 (base) | consolidation, independent oracle, fail-closed fixes (rate overflow, NaN-safe mass guard), mutation probes | this repository; tag `v0.1.0` = `84cb661` (2026-11-22) also contains R13–R33 |
+| R13 (P0, part) | hard retention limit `P(x_t != x0) <= delta` (pathwise and expected, F29) | `retention.py` (in 0.1.0) |
+| R13 (P0, part) | experimental identifiability: Fisher rank, exact witnesses, Cramér–Rao session counts, design search | `identifiability.py` (in 0.1.0) |
+| R13 (P0, part) / R34 | continuous line revisited: linear-Gaussian analogue with an exact oracle; adaptivity worth zero there under a covariance-only loss (N-47), but not under a 0-1 decision loss (N-50); whether this bears on the R9 null result cannot be checked (R9 code not in this repository) | `gaussian.py` (unreleased) |
 
 ## Source bundles (SHA-256 of the archived ZIP files)
 
