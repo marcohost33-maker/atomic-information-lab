@@ -5,6 +5,47 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Added -- R34: continuous line, Kalman filter + STOP + look-ahead (roadmap R13/P0)
+- `gaussian` module: linear-Gaussian analogue of the model (drifting stored value and sensor
+  offset, target and reference reads, back-action on the drift); Kalman filter in Joseph form;
+  `solve_gaussian` (exact Bayes-optimal plan with STOP, optional retention limit),
+  `lookahead_plan` (receding horizon, depth 1 = greedy, depth 2 = two-step look-ahead),
+  `reference_plan` / `fixed_plan` (R8/R9 reference-slot baseline), `best_fixed_plan`,
+  `gaussian_table`. `scope = MODEL_INTERNAL_EXACT_LINEAR_GAUSSIAN` on every plan.
+- Independent oracle `tests/_gaussian_oracle.py`: batch information form in rational arithmetic.
+- Pre-registered grid: `docs/GAUSSIAN_PROTOCOL.md`, `scripts/gaussian_grid.py`,
+  `docs/GAUSSIAN_GRID_RESULTS.json` (G1–G3, G5, G6 confirmed; G4 refuted). Findings N-47–N-49.
+- CLI `gaussian --horizon H [--depth D] [--retention-limit δ]`; `reproduce --table gaussian`
+  (not part of `--table all`).
+- Mutants M46–M50.
+
+### Fixed -- R34b self-review of R34 (findings N-50, N-51; correction record in FINDINGS §10)
+- `gaussian_table` used the default action names and crashed for any other catalogue; it now
+  takes the model's own reference and target action (`model_reference_plan`).
+- `reproduce --table gaussian --max-horizon N` rejected every `N > 5` (the discrete range check ran
+  first) and named the wrong range in the error.
+- `GaussianState` accepted invalid states (a negative variance gave a negative loss); it now checks
+  finiteness, symmetry, positive semi-definiteness and `damage >= 0` on construction.
+- The documented claim that pathwise and expected retention limits coincide was false: the
+  posterior damage depends on the data. New `conditional_damage`; `retention_limit` is documented
+  as the expected (data-averaged) limit only (N-51).
+- N-47 was stated too generally (and claimed to explain the R9 null result, which cannot be
+  checked here); now scoped to its three conditions, with the counter-case N-50: under a 0-1 loss
+  for the sign of `x0` adaptive stopping beats every fixed plan (`scripts/sign_adaptivity.py`,
+  `docs/SIGN_ADAPTIVITY.json`).
+- `scripts/verify_preregistration.py --chain r29|r33|r34|all`; CI checks every chain (a squash
+  merge of a registration commit now fails CI instead of skipping a test). R33 has no C5 parser and
+  says so under `not_checked`.
+- CLI `gaussian` gains `--alpha` and `--retention-weight`.
+- Mutants M51–M52.
+- CHANGELOG: the tagged release 0.1.0 gets its own heading (tag `v0.1.0` → `84cb661`, 2026-11-22);
+  `tests/test_changelog_tags.py` keeps every tag and its heading in step.
+
+## [0.1.0] - 2026-11-22
+
+Tag `v0.1.0` (lightweight) points at `84cb661` (merge of #7). No GitHub release and no DOI yet.
+Everything below down to the consolidation base was developed after it and before the tag.
+
 ### Added -- R33: self-review, observed-data intervals, pre-registered falsification
 - `likelihood_ratio_interval` / `likelihood_ratio_statistic` / `DataInterval`: likelihood-ratio
   (profile) intervals from OBSERVED outcome counts, next to the Wald interval; CLI `lr-interval
@@ -308,7 +349,7 @@ locally; hosted CI on this change is still open.
   tests (Windows, CPython 3.12). The wheel is unchanged (package modules
   only). `tests/test_packaging_manifest.py` checks the rule on every run.
 
-## [0.1.0] - not released
+## Consolidation base of 0.1.0 (R10–R12 core, never tagged on its own)
 
 ### Added
 - `Problem` (one or several static model hypotheses), `Action`, `Hypothesis`,

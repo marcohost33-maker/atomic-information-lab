@@ -1,0 +1,90 @@
+{
+  "loss": "0-1 loss for the sign of x0 plus energy_lambda * energy; horizon 2",
+  "quadrature": {
+    "n_inner": 200,
+    "n_outer": 800,
+    "span_sd": 10.0
+  },
+  "rows": [
+    {
+      "adaptive": {
+        "first": "precise",
+        "per_first_action": {
+          "fast": 0.21720900797584106,
+          "precise": 0.21357544404512352
+        },
+        "value": 0.21357544404512352
+      },
+      "energy_lambda": 0.004,
+      "monte_carlo_adaptive": {
+        "runs": 40000,
+        "seed": 50,
+        "standard_error": 0.0020026368655297285,
+        "value": 0.214654560000018
+      },
+      "open_loop_best": {
+        "plan": [
+          "precise",
+          "reference"
+        ],
+        "value": 0.21375619918416464
+      },
+      "quadrature_error_estimate": 1.3746778659839975e-07,
+      "relative_gain": 0.0008456135528747146
+    },
+    {
+      "adaptive": {
+        "first": "fast",
+        "per_first_action": {
+          "fast": 0.23065781298126795,
+          "precise": 0.24152791504733978
+        },
+        "value": 0.23065781298126795
+      },
+      "energy_lambda": 0.012,
+      "monte_carlo_adaptive": {
+        "runs": 40000,
+        "seed": 50,
+        "standard_error": 0.0020437744834531897,
+        "value": 0.23094816000002105
+      },
+      "open_loop_best": {
+        "plan": [
+          "fast",
+          "reference"
+        ],
+        "value": 0.2318189295030183
+      },
+      "quadrature_error_estimate": 1.9590974173477882e-07,
+      "relative_gain": 0.0050087217822962
+    },
+    {
+      "adaptive": {
+        "first": "fast",
+        "per_first_action": {
+          "fast": 0.26862204767765757,
+          "precise": 0.32313426994778593
+        },
+        "value": 0.26862204767765757
+      },
+      "energy_lambda": 0.036,
+      "monte_carlo_adaptive": {
+        "runs": 40000,
+        "seed": 50,
+        "standard_error": 0.0020707475575155263,
+        "value": 0.27145968000007886
+      },
+      "open_loop_best": {
+        "plan": [
+          "fast",
+          "reference"
+        ],
+        "value": 0.2750189295030183
+      },
+      "quadrature_error_estimate": 8.803138395463428e-07,
+      "relative_gain": 0.02325978737871038
+    }
+  ],
+  "schema": "ail-sign-adaptivity-v1",
+  "status": "exploratory, not pre-registered"
+}

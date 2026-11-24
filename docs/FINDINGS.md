@@ -168,7 +168,43 @@ Limits: model-internal throughout; one parameter point; two designs; 1000 replic
 (Monte-Carlo error about 0.007 on a coverage); the part-B biases at N = 30 894 are over the 63.5 %
 converged fits. Same-family work.
 
-## 10. Not checked
+## 10. R34 continuous line: Kalman filter, STOP, look-ahead; R34b self-review (2026-11-24, same-family; cross-family review pending)
+
+Module, oracle, tests, protocol `docs/GAUSSIAN_PROTOCOL.md` and runner `scripts/gaussian_grid.py`
+were committed together in `f1eb353` before the grid was computed; results
+`docs/GAUSSIAN_GRID_RESULTS.json` in `48048e2` (provenance: head `f1eb353`, clean tree).
+
+| ID | Finding | Verdict | Evidence |
+|---|---|---|---|
+| N-47 | In the linear-Gaussian analogue with known parameters and a loss that depends on the data only through the posterior covariance, the covariance, and hence every terminal loss, does not depend on the data; the Bayes-optimal policy with STOP is an open-loop plan and the value of adaptivity is exactly 0 (Meier, Peschon & Dressler 1967; no dual effect, Bar-Shalom & Tse 1974). **Scope (corrected in R34b):** the first version said this "explains" the R9 null result and attributed the discrete model's adaptive gain to "non-Gaussian structure". Neither is supported: the R9 code is not in this repository, an online rule and a fixed plan differ by a deterministic amount in this class (G5: the fixed reference plan is >= 5 % worse at 26 / 27 points), and N-50 shows that the loss, not the dynamics, decides. | CONFIRMED within its three conditions | covariance invariance test; package optimum = rational brute force over all plans up to `h = 4`, two models, <= 1e-12; generative simulation (6000 runs, abs(z) < 4) with a negative control (offset prior off by 4x: z > 4) |
+| N-48 | Look-ahead depth is not monotone. At the default point the greedy rule is optimal (0.10520) and the two-step rule is 5.1 % worse (exploratory, before registration). On the registered grid: two-step worse than greedy at 11 / 27 points (G2 confirmed, 10 excluding the default point), closer to the optimum on average (3.1 % vs 4.0 %, G3 confirmed), worst case 11.8 % (G4 **refuted**: registered bound 10 %); greedy worst case 40.6 %. | G1–G3, G5, G6 CONFIRMED; G4 REFUTED | `docs/GAUSSIAN_GRID_RESULTS.json`; the test re-runs the grid and compares every row |
+| N-49 | Post hoc, descriptive only (not registered): 22 / 27 optimal plans start with a target read and place the reference read after it; where the two-step rule loses (15 points) it reads the reference first in 10 and uses the optimum's readings in a worse order in 7. The order matters because the offset drifts between readings. | post hoc | same file |
+| N-50 | Counter-case to an over-general reading of N-47 (R34b, exploratory, not pre-registered; a prototype was seen first). Same dynamics, readings and energies; terminal decision "sign of `x0`", 0-1 loss. The risk of a fixed plan is `1/2 - arctan(sqrt((v0 - v)/v))/pi` (closed form, checked by simulation); the Bayes-optimal adaptive value for `h = 2` follows from the Gaussian martingale of the posterior mean. Adaptive beats the best of all fixed plans of length <= 2 at every price: 0.213575 vs 0.213756 (`lambda = 0.004`, +0.08 %), 0.230658 vs 0.231819 (0.012, +0.50 %), 0.268622 vs 0.275019 (0.036, +2.33 %); quadrature error (step halving) <= 9e-7, at least 200x below each gap. Monte Carlo of the verbal model with the Kalman filter reproduces each adaptive value (abs(z) <= 1.4; its SE 0.002 checks the value, not the gap). Control: the same problem with the variance loss has adaptive = open-loop. | CONFIRMED (exploratory) | `scripts/sign_adaptivity.py`, `docs/SIGN_ADAPTIVITY.json`; tests re-run the quadrature coarser and compare |
+| N-51 | The R34 docstring and README said that pathwise and expected retention limits coincide in the Gaussian line. False: the posterior damage `E[(x - x0)^2 | D] = Var(x - x0 | D) + E[x - x0 | D]^2` depends on the data (0.037 vs 0.149 after the same two `fast` readings with data 0/0 and 2/-2); only its average is the deterministic damage (law of total expectation, checked by 20 000 simulations). Under Gaussian tails it is unbounded, so a hard pathwise limit would admit only readings carrying no information about `x - x0`. `retention_limit` is now documented as the expected limit; `conditional_damage` added. | REFUTED (own claim), corrected | `tests/test_r34_gaussian.py` |
+
+**R34b correction record (self-review of R34, same day).** Besides N-47 (scope) and N-51:
+(1) `gaussian_table` crashed for any catalogue without the default action names; (2)
+`reproduce --table gaussian --max-horizon N` rejected every `N > 5` and named the wrong range;
+(3) `GaussianState` accepted a negative variance (loss -1.0); (4) the README table was first typed
+from rounded prototype values (7th digit off; now pinned by a test); (5) the PR text named the
+wrong Python version; (6) the R34 registration chain was checked only by a test that *skips* when
+the commit is missing, i.e. fail-open under a squash merge -- `verify_preregistration.py --chain
+all` now runs in CI; (7) the release state was misreported as "no tag": tag `v0.1.0` exists
+(`84cb661`, 2026-11-22) while the CHANGELOG said "not released" (defect A6 of the 2026-11-24
+Lagebild, fixed only locally there); (8) Vitus et al. had been cited with an unverified venue
+(removed). Each code defect has a regression test; mutants M51–M52 below.
+
+New mutants M46–M50 (reference read sees the target, back-action ignored, STOP removed, Kalman
+mean sign, look-ahead executes the wrong action), all killed by relations; M49 leaves every
+planning figure exact and is seen only by the oracle means and the generative simulation.
+M51 (the determinant check of `GaussianState` removed) and M52 (the table's reference plan
+ignores the model's catalogue) reproduce defects (3) and (1) of R34b; M51 is killed by a
+relation, M52 by the fail-closed guard (unknown action name), which is how the defect showed.
+
+Limits: model-internal, synthetic, one model class with three actions; the grid varies three of
+the eight parameters; `h = 6`. No statement about an instrument.
+
+## 11. Not checked
 
 R6 figures, rounds R1–R7, the literature list of the earlier report, any
 statement about other projects, Python < 3.12.

@@ -39,7 +39,8 @@ jobs:
       - name: Tests
         run: python -m pytest -q
       - name: Pre-registration chain (git history)
-        run: python scripts/verify_preregistration.py > "$RUNNER_TEMP/prereg.json" || { cat "$RUNNER_TEMP/prereg.json"; exit 1; }
+        # every registered chain (R29, R33, R34); fails closed on a squashed or rewritten history
+        run: python scripts/verify_preregistration.py --chain all > "$RUNNER_TEMP/prereg.json" || { cat "$RUNNER_TEMP/prereg.json"; exit 1; }
       - name: CLI smoke test (installed package)
         run: |
           cd "$RUNNER_TEMP"
