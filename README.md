@@ -502,13 +502,24 @@ offset prior × drift × energy price, `h = 6`; `docs/GAUSSIAN_GRID_RESULTS.json
 
 Practical consequence inside this model class: the exact search costs `Σ_k |A|^k` covariance
 updates (1 092 for three actions and `h = 6`, about 0.03 s; `h = 10`: about 2.6 s), so there is no
-reason to use either heuristic. A retention limit on the data-averaged damage
-`E[(x−x0)²] ≤ δ` is available (`retention_limit`, the expected reading of F29). It is **not** a
-pathwise limit: the posterior damage `E[(x−x0)²|D]` (`conditional_damage`) depends on the data
-(e.g. 0.037 or 0.149 after the same two readings) and is unbounded under Gaussian tails, so a
-hard pathwise version would admit only readings that carry no information about `x − x0`
-(N-51). CLI: `gaussian --horizon 6 [--depth 2] [--retention-limit δ] [--alpha a]
-[--retention-weight w]`. Every figure carries `scope = MODEL_INTERNAL_EXACT_LINEAR_GAUSSIAN`.
+reason to use either heuristic.
+
+**Retention limit on the data-averaged damage `E[(x−x0)²] ≤ δ`** (the expected reading of F29;
+corrected in R35 after the cross-family review of PR #8). The limit constrains an expectation, so
+the optimum over all policies is the lower convex hull of the plan points (damage, value) at δ --
+one plan or a mix of two -- not the best single plan (N-52). `solve_gaussian_retention` returns it
+with the price of the limit, a dual bound over all plans and the duality gap (0 up to rounding);
+`solve_gaussian(..., retention_limit=δ)` remains the best *single* plan and can be far worse
+(36.6 % at `h = 2`, δ = 0.03). When the two plans share their first readings, a threshold on the
+standardised innovation of the last shared reading realises the mix without a coin, so under
+this limit a data-dependent rule beats every fixed plan (N-53; −0.79 % at `h = 2`, δ = 0.08,
+confirmed by simulation). The limit is **not** pathwise: the posterior damage `E[(x−x0)²|D]`
+(`conditional_damage`) depends on the data (e.g. 0.037 or 0.149 after the same two readings) and
+is unbounded under Gaussian tails, so a hard pathwise version would admit only readings that
+carry no information about `x − x0` (N-51). CLI: `gaussian --horizon 6 [--depth 2]
+[--retention-limit δ] [--alpha a] [--retention-weight w]`; with a limit, `optimal` is the exact
+optimum and `best_plan_under_limit` the single plan. Every figure carries
+`scope = MODEL_INTERNAL_EXACT_LINEAR_GAUSSIAN`.
 
 ## How it is verified
 
@@ -642,7 +653,7 @@ From section 13.1 of the R1–R12 report (2026-10-18):
 | R29-02 | Separate outputs Bayes risk / MI(X0;Y) / P(X_T≠X0) / energy / steps | **done** (`metrics.py`, oracle-verified; finding N-32; same-family, cross-family review pending) |
 | R29-03 | Pareto list in `design_search` instead of a single D-optimal winner | **done** (`design_pareto`, Fisher spectrum on every report; findings N-33, N-34; same-family, cross-family review pending) |
 | R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | **done** (`likelihood_profile.py`: expected-data profiles, observed-data LR intervals; LR coverage measured pre-registered; findings N-36–N-45; same-family) |
-| R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | **done** (`gaussian.py`: exact open-loop optimum with STOP, rational batch oracle; pre-registered grid G1–G6, G4 refuted; findings N-47–N-51 incl. self-review R34b; same-family, cross-family review pending) |
+| R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | **done** (`gaussian.py`: exact open-loop optimum with STOP, rational batch oracle; pre-registered grid G1–G6, G4 refuted; findings N-47–N-51 incl. self-review R34b; cross-family review by Codex on PR #8: P2 fixed as N-52/N-53 in R35, P1 reproduced as a squash artefact, gate kept fail-closed) |
 | R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |
 | R15 / P2 | Laboratory integration (STM/AFM raw data); Hexa-NTK / CodeFactory adapters | open, outside this repository |
 

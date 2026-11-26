@@ -181,6 +181,8 @@ were committed together in `f1eb353` before the grid was computed; results
 | N-49 | Post hoc, descriptive only (not registered): 22 / 27 optimal plans start with a target read and place the reference read after it; where the two-step rule loses (15 points) it reads the reference first in 10 and uses the optimum's readings in a worse order in 7. The order matters because the offset drifts between readings. | post hoc | same file |
 | N-50 | Counter-case to an over-general reading of N-47 (R34b, exploratory, not pre-registered; a prototype was seen first). Same dynamics, readings and energies; terminal decision "sign of `x0`", 0-1 loss. The risk of a fixed plan is `1/2 - arctan(sqrt((v0 - v)/v))/pi` (closed form, checked by simulation); the Bayes-optimal adaptive value for `h = 2` follows from the Gaussian martingale of the posterior mean. Adaptive beats the best of all fixed plans of length <= 2 at every price: 0.213575 vs 0.213756 (`lambda = 0.004`, +0.08 %), 0.230658 vs 0.231819 (0.012, +0.50 %), 0.268622 vs 0.275019 (0.036, +2.33 %); quadrature error (step halving) <= 9e-7, at least 200x below each gap. Monte Carlo of the verbal model with the Kalman filter reproduces each adaptive value (abs(z) <= 1.4; its SE 0.002 checks the value, not the gap). Control: the same problem with the variance loss has adaptive = open-loop. | CONFIRMED (exploratory) | `scripts/sign_adaptivity.py`, `docs/SIGN_ADAPTIVITY.json`; tests re-run the quadrature coarser and compare |
 | N-51 | The R34 docstring and README said that pathwise and expected retention limits coincide in the Gaussian line. False: the posterior damage `E[(x - x0)^2 | D] = Var(x - x0 | D) + E[x - x0 | D]^2` depends on the data (0.037 vs 0.149 after the same two `fast` readings with data 0/0 and 2/-2); only its average is the deterministic damage (law of total expectation, checked by 20 000 simulations). Under Gaussian tails it is unbounded, so a hard pathwise limit would admit only readings carrying no information about `x - x0`. `retention_limit` is now documented as the expected limit; `conditional_damage` added. | REFUTED (own claim), corrected | `tests/test_r34_gaussian.py` |
+| N-52 | Cross-family finding (Codex review of PR #8, P2). `solve_gaussian(..., retention_limit=δ)` was documented as the Bayes-optimal policy under the *expected* limit `E[(x − x0)²] ≤ δ`; it is only the best single plan. Every policy, randomised or data-dependent, induces a distribution over the reading sequences it carries out, and its value and damage are the matching averages of the plan values and damages (posterior variances do not depend on the data; a reading's drift is independent of all earlier decisions). The optimum is the lower convex hull of the plan points at δ: one plan or a mix of two (`solve_gaussian_retention`, with multiplier, dual bound over all plans and duality gap). Codex's case (default model, `h = 1`, δ = 0.01): STOP 0.25 vs ½ STOP + ½ `fast` 0.2072698413. Largest gap seen: 36.6 % above the optimum at `h = 2`, δ = 0.03 (single plan `fast` 0.16454 vs 0.03 STOP + 0.97 `reference, fast` 0.12049). | CONFIRMED (review correct), fixed | `tests/test_r35_retention_mixture.py`: rational oracle that checks every plan and every pair of plans (no hull), two models, `h` ≤ 3, 10 limits each, ≤ 1e-12; dual gap ≤ 1e-10, value non-increasing and convex in δ on 41 limits; mutants M53–M54 |
+| N-53 | Refinement of N-47 (exploratory, R35, not pre-registered; found by the prototype of N-52). Under an expected limit, adaptivity is worth more than zero even in this model class: when both hull plans share their first readings, splitting on the standardised innovation `e/√s` of the last shared reading (`Φ(e/√s) < w`) realises the mix without an external coin, as a deterministic, data-dependent rule that beats every single plan. Example: default model, `h = 2`, δ = 0.08: 0.02 `reference, fast` + 0.98 `reference, precise` = 0.115260 vs best single plan `reference, fast` 0.116174 (−0.79 %). Generative simulation of the verbal model, 20 000 runs: value z = −0.97, damage z = 0.66; negative control with swapped weights: damage z = −138. | CONFIRMED (exploratory) | `tests/test_r35_retention_mixture.py`; mutant M55 |
 
 **R34b correction record (self-review of R34, same day).** Besides N-47 (scope) and N-51:
 (1) `gaussian_table` crashed for any catalogue without the default action names; (2)
@@ -203,6 +205,21 @@ relation, M52 by the fail-closed guard (unknown action name), which is how the d
 
 Limits: model-internal, synthetic, one model class with three actions; the grid varies three of
 the eight parameters; `h = 6`. No statement about an instrument.
+
+**R35 correction record (cross-family: Codex review of PR #8 at `c74cc69`).**
+P2 (expected retention limit) was correct and is fixed as N-52/N-53: the single-plan result keeps
+its function under its correct name (best plan under the limit); the CLI `gaussian
+--retention-limit` reports the exact (possibly mixed) optimum as `optimal` and the single plan as
+`best_plan_under_limit`. P1 (registration ancestry) was reproduced and needs no history change:
+on the pushed branch (`f1eb353 → 48048e2 → 87523e0 → c74cc69`) and on a merge commit of it, the
+shape GitHub checks out for `pull_request` (`refs/pull/N/merge`), every chain passes; the review's
+commit `2d1080d` (parent `84cb661`) is not in this repository and has the shape of a squash, for
+which R34 C2 and C4 fail exactly as reported. The gate is meant to fail there and stays
+fail-closed; `verify_preregistration.py` now names the cause under `diagnosis` (and when the
+registration commit is missing from a clone), and a test squashes the branch in a scratch clone
+and checks both outcomes. Consequence kept from R34: merge with a merge commit, never squash or
+rebase. Mutants M53 (mixture weights swapped) and M54 (hull keeps non-convex points) are caught
+by the result's own certificate (guard); M55 (shared prefix inverted) by a relation.
 
 ## 11. Not checked
 

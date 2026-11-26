@@ -18,6 +18,7 @@ synthetic classical models only.
 | R13 (P0, part) | hard retention limit `P(x_t != x0) <= delta` (pathwise and expected, F29) | `retention.py` (in 0.1.0) |
 | R13 (P0, part) | experimental identifiability: Fisher rank, exact witnesses, Cramér–Rao session counts, design search | `identifiability.py` (in 0.1.0) |
 | R13 (P0, part) / R34 | continuous line revisited: linear-Gaussian analogue with an exact oracle; adaptivity worth zero there under a covariance-only loss (N-47), but not under a 0-1 decision loss (N-50); whether this bears on the R9 null result cannot be checked (R9 code not in this repository) | `gaussian.py` (unreleased) |
+| R35 | cross-family review of R34 (Codex): under an expected retention limit the optimum is a mix of at most two plans, not the best single plan (N-52); a data-dependent split realises it without a coin (N-53); the squash finding is a checkout artefact, gate kept fail-closed with a diagnosis | `gaussian.py`, `verify_preregistration.py` (unreleased) |
 
 ## Source bundles (SHA-256 of the archived ZIP files)
 
