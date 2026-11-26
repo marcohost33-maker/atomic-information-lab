@@ -25,6 +25,10 @@ What git can show, and is checked here:
 * C5 the fixed setting parsed from the protocol (sessions, replications, seeds,
   start offset, design) equals the setting recorded in the results.
 
+If the registration commit is not an ancestor of ``--head`` (a squash or rebase merge, or a
+squashed checkout as in the Codex review of PR #8), the report says so under ``diagnosis``
+(R35); the checks stay fail-closed. Merge registered work with a merge commit.
+
 What git cannot show, and is stated in ``limits`` instead of being checked: commit dates
 are written by the committer and prove no wall-clock order; a results file can be
 produced before the protocol commit and committed after it. Only an external anchor
@@ -44,6 +48,15 @@ PROTOCOL = "docs/ESTIMATOR_PROTOCOL.md"
 RESULTS = "docs/ESTIMATOR_CALIBRATION_RESULTS.json"
 PREREG = "1097c2d"
 FROZEN_END = "\n## Deviations"
+SQUASH_HINT = (
+    "the registration commit {pre} is not an ancestor of head {head}: the history was squashed or "
+    "rebased, so the registered commits are no longer reachable from it. Merge registered work with a "
+    "merge commit (never squash or rebase); the checks stay fail-closed"
+)
+MISSING_HINT = (
+    "registration commit {pre} is not in this clone: fetch the full history (fetch-depth 0) or merge "
+    "without squashing; nothing can be checked without it"
+)
 LIMITS = (
     "commit dates are self-declared by the committer; git proves content and ancestry, not wall-clock order",
     "a result computed before the registration commit and committed after it passes C1-C5; "
@@ -199,7 +212,10 @@ def verify(
     setting=_c5_r29,
 ) -> dict:
     checks: dict[str, dict] = {}
-    pre = _git(repo, "rev-parse", "--verify", f"{prereg}^{{commit}}").strip()
+    try:
+        pre = _git(repo, "rev-parse", "--verify", f"{prereg}^{{commit}}").strip()
+    except GitError as exc:
+        raise GitError(f"{exc}; {MISSING_HINT.format(pre=prereg)}") from exc
     head_sha = _git(repo, "rev-parse", "--verify", f"{head}^{{commit}}").strip()
 
     proto_pre = _show(repo, pre, protocol)
@@ -255,6 +271,9 @@ def verify(
             c5 = {"pass": False, "error": str(exc)}
         checks["C5_setting_matches_protocol"] = c5
 
+    diagnosis = []
+    if _git(repo, "merge-base", "--is-ancestor", pre, head_sha, check=False) is None:
+        diagnosis.append(SQUASH_HINT.format(pre=pre[:7], head=head_sha[:7]))
     return {
         "schema": "ail-preregistration-check-v1",
         "registration_commit": pre,
@@ -262,7 +281,8 @@ def verify(
         "protocol": protocol,
         "results": results,
         "checks": checks,
-        "all_pass": all(c["pass"] for c in checks.values()),
+        "all_pass": all(c["pass"] for c in checks.values()) and not diagnosis,
+        "diagnosis": diagnosis,
         "not_checked": not_checked,
         "limits": list(LIMITS),
     }
