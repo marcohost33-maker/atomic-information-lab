@@ -5,6 +5,19 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Fixed -- R35b: self-review of R35 (correction record in FINDINGS §10)
+- `GaussianRetentionResult.deterministic` held the best single plan, not the best deterministic
+  policy; renamed `best_single_plan`. The deterministic class is now solved exactly
+  (`deterministic_value`, `deterministic_damage`, `deterministic_components`: best first reading,
+  then a split on the innovation), with a rational oracle and a simulation.
+- Claims corrected with exact suprema: single plan up to 52.76 % above the optimum (was "largest
+  gap seen 36.6 %"), 41.63 % above the deterministic policy; the coin is worth up to 29.03 %.
+  N-53 rescoped (data-dependent beats every fixed plan, not randomised plans).
+- New `gaussian_retention_frontier` (the hull for every δ). Test linking the multiplier to the
+  retention weight (Gaussian analogue of N-15).
+- Beutler & Ross 1985 cited with DOI and scoped as the infinite-horizon analogue (also in
+  `retention.py`). Mutant M56; expected verdicts of M54/M55 updated (stronger tests).
+
 ### Fixed -- R35: cross-family review of PR #8 (Codex, at `c74cc69`; findings N-52, N-53)
 - P2: under the expected limit `E[(x - x0)^2] <= delta` the Gaussian line reported the best
   single plan as the optimum. New `solve_gaussian_retention` (exact over all randomised and
