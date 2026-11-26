@@ -25,6 +25,7 @@ from atomic_information_lab.gaussian import (
     GaussianAction,
     GaussianModel,
     GaussianObjective,
+    gaussian_retention_frontier,
     initial_state,
     innovation,
     plan_value,
@@ -113,15 +114,15 @@ def test_codex_counterexample_of_the_review():
     assert [(round(w, 12), p.sequence) for w, p in r.components] == [(0.5, ()), (0.5, ("fast",))]
     assert r.value == pytest.approx(0.2072698413, abs=1e-10)
     assert r.damage == pytest.approx(0.01, abs=TOL)
-    assert r.deterministic.value == pytest.approx(0.25, abs=TOL) and r.deterministic.sequence == ()
-    assert solve_gaussian(DEFAULT_GAUSSIAN_MODEL, 1, retention_limit=0.01).value == r.deterministic.value
+    assert r.best_single_plan.value == pytest.approx(0.25, abs=TOL) and r.best_single_plan.sequence == ()
+    assert solve_gaussian(DEFAULT_GAUSSIAN_MODEL, 1, retention_limit=0.01).value == r.best_single_plan.value
 
 
 def test_n52_pinned_gap_of_the_single_plan():
     r = solve_gaussian_retention(DEFAULT_GAUSSIAN_MODEL, 2, 0.03)
-    gap = r.deterministic.value / r.value - 1
+    gap = r.best_single_plan.value / r.value - 1
     assert round(gap, 4) == 0.3656
-    assert r.deterministic.sequence == ("fast",)
+    assert r.best_single_plan.sequence == ("fast",)
     assert [p.sequence for _, p in r.components] == [(), ("reference", "fast")]
 
 
@@ -136,10 +137,15 @@ def test_certificate_and_shape(model):
         r = solve_gaussian_retention(model, h, d)
         assert r.damage <= d + TOL
         assert abs(r.duality_gap) <= 1e-10
-        assert r.value <= r.deterministic.value + TOL
-        assert r.deterministic.value == pytest.approx(solve_gaussian(model, h, retention_limit=d).value, abs=TOL)
+        assert r.value <= r.best_single_plan.value + TOL
+        assert r.best_single_plan.value == pytest.approx(solve_gaussian(model, h, retention_limit=d).value, abs=TOL)
         assert len(r.components) in (1, 2) and sum(w for w, _ in r.components) == pytest.approx(1.0, abs=1e-15)
-        assert all(p.damage <= d + TOL for w, p in r.components) or len(r.components) == 2
+        if len(r.components) == 2:  # the two hull plans bracket the limit
+            assert r.components[0][1].damage <= d < r.components[1][1].damage
+        else:
+            assert r.components[0][1].damage <= d + TOL
+        assert r.value - TOL <= r.deterministic_value <= r.best_single_plan.value + TOL
+        assert r.deterministic_damage <= d + TOL
         vals.append(r.value)
     assert all(b <= a + TOL for a, b in zip(vals, vals[1:], strict=False))
     assert all(vals[i - 1] + vals[i + 1] - 2 * vals[i] >= -1e-10 for i in range(1, len(vals) - 1))
@@ -176,21 +182,32 @@ def _phi(z):
     return 0.5 * (1.0 + erf(z / sqrt(2.0)))
 
 
-def _run_split(model, result, rng, swap=False):
+def _common(a, b):
+    n = 0
+    while n < min(len(a), len(b)) and a[n] == b[n]:
+        n += 1
+    return a[:n]
+
+
+def _run_split(model, result, rng, swap=False, components=None):
     """One run of the verbal model under the deterministic split rule of N-53.
 
     Read the shared prefix; then follow component 0 iff Phi(standardised innovation of the last
     shared reading) < its weight. ``swap`` uses the other weight (negative control).
+    ``components`` defaults to the mixture optimum; pass ``deterministic_components`` to run the
+    best deterministic policy.
     """
-    (w0, p0), (_w1, p1) = result.components
+    (w0, p0), (_w1, p1) = result.components if components is None else components
     if swap:
         w0 = 1.0 - w0
     o = model.objective
     x0 = rng.gauss(0, sqrt(model.prior_var))
     x, b = x0, rng.gauss(0, sqrt(model.bias_prior_var))
     st = initial_state(model)
-    k = len(result.shared_prefix)
-    seq = list(result.shared_prefix)
+    shared = _common(p0.sequence, p1.sequence)
+    assert shared, "a deterministic split needs a shared first reading"
+    k = len(shared)
+    seq = list(shared)
     energy, i, u = 0.0, 0, None
     while i < len(seq):
         a = model.action(seq[i])
@@ -225,7 +242,7 @@ def test_n53_case_has_a_shared_prefix_and_beats_every_plan():
     r = solve_gaussian_retention(DEFAULT_GAUSSIAN_MODEL, 2, 0.08)
     assert r.shared_prefix == ("reference",)
     assert [p.sequence for _, p in r.components] == [("reference", "fast"), ("reference", "precise")]
-    assert r.value < r.deterministic.value - 1e-4  # 0.115260 vs 0.116174
+    assert r.value < r.best_single_plan.value - 1e-4  # 0.115260 vs 0.116174
 
 
 def test_n53_data_split_realises_the_mixture_without_a_coin():
@@ -319,3 +336,121 @@ def test_squashed_history_fails_closed_with_a_diagnosis(tmp_path):
     for rev in (head, git("rev-parse", "HEAD")):
         rc, rep = check(rev)
         assert rc == 0 and rep["all_pass"] and rep["diagnosis"] == []
+
+
+# ------------------------------------------------------------------ R35b: three nested policy classes
+def _oracle_deterministic(model, horizon, delta):
+    """Best deterministic policy, rational and without hulls: STOP, or for each first reading the
+    best single plan / pair of plans starting with it (the data draw from the first reading on)."""
+    d = F(delta)
+    pts = _oracle_points(model, horizon)
+    best = next(v for dd, v, s in pts if s == ())
+    for a in model.actions:
+        group = [(dd, v) for dd, v, s in pts if s[:1] == (a.name,)]
+        for d1, v1 in group:
+            if d1 <= d:
+                best = min(best, v1)
+                for d2, v2 in group:
+                    if d2 > d:
+                        q = (d2 - d) / (d2 - d1)
+                        best = min(best, q * v1 + (1 - q) * v2)
+    return best
+
+
+@pytest.mark.parametrize("model", [DEFAULT_GAUSSIAN_MODEL, ALT], ids=["default", "alt"])
+@pytest.mark.parametrize("horizon", [1, 2, 3])
+def test_deterministic_policy_matches_the_rational_oracle(model, horizon):
+    for delta in DELTAS:
+        r = solve_gaussian_retention(model, horizon, delta)
+        assert r.deterministic_value == pytest.approx(float(_oracle_deterministic(model, horizon, delta)), abs=TOL)
+        comps = r.deterministic_components
+        assert len(comps) == 1 or _common(comps[0][1].sequence, comps[1][1].sequence)
+
+
+def test_one_reading_leaves_no_data_to_draw_with():
+    """h = 1: the only decision comes before any data, so deterministic = best single plan."""
+    for d in DELTAS:
+        r = solve_gaussian_retention(DEFAULT_GAUSSIAN_MODEL, 1, d)
+        assert r.deterministic_value == pytest.approx(r.best_single_plan.value, abs=TOL)
+
+
+def test_r35b_pinned_example_of_the_three_classes():
+    r = solve_gaussian_retention(DEFAULT_GAUSSIAN_MODEL, 2, 0.03)
+    assert round(r.value, 6) == 0.120491
+    assert round(r.deterministic_value, 6) == 0.12242
+    assert round(r.best_single_plan.value, 6) == 0.16454
+    assert [p.sequence for _, p in r.deterministic_components] == [("fast",), ("fast", "reference")]
+    assert r.shared_prefix == ()  # the randomised optimum needs a coin here
+
+
+def test_exact_suprema_quoted_in_the_docs():
+    """Suprema over delta (default model, h = 2; the same for h = 3..6 by the R35b audit): the
+    ratios are linear-fractional between breakpoints, so the suprema sit at breakpoints or their
+    left limits; evaluated here just below / at them."""
+    m = DEFAULT_GAUSSIAN_MODEL
+
+    def at(d):
+        return solve_gaussian_retention(m, 2, d)
+
+    r = at(0.02 - 1e-12)  # single vs mixture, left limit at 0.02
+    assert round(r.best_single_plan.value / r.value - 1, 4) == 0.5276
+    r = at(0.031 - 1e-12)  # single vs deterministic, left limit at 0.031
+    assert round(r.best_single_plan.value / r.deterministic_value - 1, 4) == 0.4163
+    grid = [0.0130 + i * 1e-7 for i in range(1, 600)]  # deterministic vs mixture, attained near 0.013028
+    best = max(at(d).deterministic_value / at(d).value - 1 for d in grid)
+    assert round(best, 4) == 0.2903
+    assert at(0.02).best_single_plan.sequence == ("fast",)
+
+
+def test_n53_best_deterministic_policy_is_realised_by_the_data():
+    """h = 2, delta = 0.03: the hull plans do not share a first reading (a coin is needed for the
+    optimum), but the best deterministic policy -- read 'fast', then stop or read 'reference' by
+    the innovation -- is attained without a coin and is 25.6 % below the best single plan."""
+    m = DEFAULT_GAUSSIAN_MODEL
+    r = solve_gaussian_retention(m, 2, 0.03)
+    rng = random.Random(5353)
+    runs = [_run_split(m, r, rng, components=r.deterministic_components) for _ in range(20000)]
+    assert abs(_z([lo for lo, _ in runs], r.deterministic_value)) < 4
+    assert abs(_z([d for _, d in runs], r.deterministic_damage)) < 4
+    rng = random.Random(53530)
+    bad = [_run_split(m, r, rng, swap=True, components=r.deterministic_components) for _ in range(20000)]
+    assert abs(_z([d for _, d in bad], r.deterministic_damage)) > 4
+    assert round(1 - r.deterministic_value / r.best_single_plan.value, 3) == 0.256
+
+
+@pytest.mark.parametrize("model", [DEFAULT_GAUSSIAN_MODEL, ALT], ids=["default", "alt"])
+def test_multiplier_is_the_retention_weight_that_makes_both_plans_optimal(model):
+    """Gaussian analogue of N-15: pricing the damage at retention_weight + mu* makes both hull plans
+    optimal for the unconstrained planner, and its value is dual_bound + mu* delta."""
+    from dataclasses import replace as dc_replace
+
+    for d in (0.01, 0.03, 0.08):
+        r = solve_gaussian_retention(model, 3, d)
+        if r.multiplier == 0.0:
+            continue
+        o = model.objective
+        priced = dc_replace(model, objective=dc_replace(o, retention_weight=o.retention_weight + r.multiplier))
+        free = solve_gaussian(priced, 3)
+        assert free.value == pytest.approx(r.dual_bound + r.multiplier * d, abs=1e-10)
+        for _, p in r.components:
+            assert plan_value(priced, p.sequence).value == pytest.approx(free.value, abs=1e-10)
+
+
+@pytest.mark.parametrize("model", [DEFAULT_GAUSSIAN_MODEL, ALT], ids=["default", "alt"])
+def test_frontier_is_the_optimum_for_every_limit(model):
+    f = gaussian_retention_frontier(model, 3)
+    assert all(a[0] < b[0] and a[1] > b[1] for a, b in zip(f, f[1:], strict=False))
+    slopes = [(b[1] - a[1]) / (b[0] - a[0]) for a, b in zip(f, f[1:], strict=False)]
+    assert all(s1 <= s2 + 1e-12 for s1, s2 in zip(slopes, slopes[1:], strict=False))  # convex
+    for d, v, seq in f:
+        r = solve_gaussian_retention(model, 3, d)
+        assert r.value == pytest.approx(v, abs=TOL)
+        assert plan_value(model, seq).value == pytest.approx(v, abs=TOL)
+
+
+@pytest.mark.parametrize("delta", [True, "0.1", 1j])
+def test_non_numeric_limits_are_rejected(delta):
+    with pytest.raises(ValueError):
+        solve_gaussian_retention(DEFAULT_GAUSSIAN_MODEL, 2, delta)
+    with pytest.raises(ValueError):
+        solve_gaussian(DEFAULT_GAUSSIAN_MODEL, 2, retention_limit=delta)

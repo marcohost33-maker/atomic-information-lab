@@ -49,21 +49,30 @@ the data-averaged damage only. Dropping (ii) (unknown variances) breaks the line
 posterior.
 
 A limit on the data-averaged damage ``E[(x - x0)^2] <= delta`` is a constraint on an
-*expectation*, and it changes the picture (R35, Codex review of PR #8, findings N-52, N-53).
-Every policy -- randomised or data-dependent -- induces a distribution over the reading
+*expectation*, and it changes the picture (R35/R35b, Codex review of PR #8, findings N-52,
+N-53). Every policy -- randomised or data-dependent -- induces a distribution over the reading
 sequences it carries out, and its expected value and expected damage are the matching averages
 of the plan values ``V(s)`` and plan damages ``D(s)`` (the posterior variances do not depend on
-the data, and a reading's drift is independent of every decision taken before it). The set of
-achievable ``(damage, value)`` pairs is therefore the convex hull of the plan points, and the
+the data, and a reading's drift has mean zero given everything decided before it). The
+achievable ``(damage, value)`` pairs are therefore the convex hull of the plan points, and the
 optimum under the limit is the lower convex hull at ``delta``: one plan or a mix of two (a
-linear programme with two constraints; Beutler & Ross 1985 for constrained MDPs). That optimum
-is ``solve_gaussian_retention``. The deterministic open-loop plan of ``solve_gaussian(...,
-retention_limit=delta)`` is only the best *plan* under the limit and can be far worse (36.6 %
-above the optimum in the default model at ``h = 2``, ``delta = 0.03``; N-52). When both
-components share their first readings, the mix needs no external coin: splitting on the
-standardised innovation of the last shared reading realises it with a deterministic,
-data-dependent rule -- so under an expected limit adaptivity is worth more than zero even in
-this model class (N-53).
+linear programme over plan weights with one equality row, the weights sum to one, and one
+inequality row, the damage, has a basic optimum with at most two non-zero weights; the
+infinite-horizon, time-average analogue for constrained Markov chains is Beutler & Ross
+1985, doi:10.1016/0022-247X(85)90288-4). Three nested policy classes, all solved exactly by
+``solve_gaussian_retention`` (default model, suprema over ``delta`` for ``h >= 2``):
+
+* best single plan (``solve_gaussian(..., retention_limit=delta)``): up to 52.76 % above the
+  optimum (left limit at ``delta -> 0.02``);
+* best deterministic policy: the first reading is fixed, but from then on the standardised
+  innovation of a reading is a uniform draw supplied by the data, so the policy can mix any
+  continuations that share that first reading -- the best over first readings of the hull of the
+  plans starting with it (N-53). Up to 41.63 % better than the best single plan (left limit at
+  ``delta -> 0.031``), so under an expected limit a data-dependent rule beats every fixed plan;
+* randomised optimum: what an external coin before the first reading adds over the best
+  deterministic policy -- up to 29.03 % (``delta ~ 0.01303``). When both hull plans share their
+  first reading, the two coincide. Against randomised open-loop plans, adaptivity is worth
+  exactly zero here as well (the hull is reached by both).
 
 The independent oracle ``tests/_gaussian_oracle.py`` recomputes every posterior in exact
 rational arithmetic by batch least squares (information form over the noise sequence), sharing
@@ -100,6 +109,7 @@ __all__ = [
     "conditional_damage",
     "solve_gaussian",
     "solve_gaussian_retention",
+    "gaussian_retention_frontier",
     "innovation",
     "plan_value",
     "lookahead_plan",
@@ -463,14 +473,24 @@ def innovation(model: GaussianModel, state: GaussianState, action: GaussianActio
 class GaussianRetentionResult:
     """Optimum under the expected limit ``E[(x - x0)^2] <= delta`` (see the module docstring).
 
-    ``components`` holds one plan, or two plans with their weights; the mix draws one plan before
-    the first reading -- or, if ``shared_prefix`` is not empty, after those readings by a
-    threshold on the standardised innovation of the last shared one (N-53).
+    Three nested policy classes, each solved exactly (``value <= deterministic_value <=
+    best_single_plan.value``):
+
+    * ``components`` / ``value``: the optimum over *all* policies -- one plan, or two plans with
+      their weights (lower convex hull at ``delta``). The mix draws a plan before the first
+      reading; if ``shared_prefix`` is not empty, a threshold on the standardised innovation of
+      the last shared reading draws it instead, without a coin.
+    * ``deterministic_components`` / ``deterministic_value``: the best *deterministic* policy.
+      Its first reading is fixed (no data yet); from the first reading on the data can draw, so it
+      is the best over first readings ``a`` of the lower hull of the plans that start with ``a``
+      (N-53). Its components always share their first reading; the split is on the innovation of
+      the last shared reading.
+    * ``best_single_plan``: the best open-loop plan meeting the limit (``solve_gaussian``).
+
     ``multiplier`` is the price ``mu*`` of the limit (slope of the lower hull at ``delta``);
     ``dual_bound = min_s V(s) + mu* (D(s) - delta)`` over *all* plans is a lower bound on every
-    policy meeting the limit, so ``duality_gap`` certifies the optimum. ``deterministic`` is the
-    best single plan meeting the limit (``solve_gaussian``), ``unconstrained`` the optimum
-    without the limit.
+    policy meeting the limit, so ``duality_gap`` certifies ``value``. ``unconstrained`` is the
+    optimum without the limit.
     """
 
     delta: float
@@ -482,14 +502,20 @@ class GaussianRetentionResult:
     multiplier: float
     dual_bound: float
     duality_gap: float
-    deterministic: GaussianPlan
+    deterministic_value: float
+    deterministic_damage: float
+    deterministic_components: tuple[tuple[float, GaussianPlan], ...]
+    best_single_plan: GaussianPlan
     unconstrained: GaussianPlan
     scope: str = GAUSSIAN_SCOPE
 
 
-def _plan_points(model: GaussianModel, st: GaussianState, horizon: int) -> list[tuple[float, float, tuple[str, ...]]]:
+Point = tuple[float, float, tuple[str, ...]]
+
+
+def _plan_points(model: GaussianModel, st: GaussianState, horizon: int) -> list[Point]:
     """(damage, value, sequence) of every plan of length 0..horizon, STOP first, catalogue order."""
-    out: list[tuple[float, float, tuple[str, ...]]] = []
+    out: list[Point] = []
 
     def rec(s: GaussianState, seq: tuple[str, ...], cost: float) -> None:
         out.append((s.damage, cost + terminal_loss(model, s), seq))
@@ -503,17 +529,17 @@ def _plan_points(model: GaussianModel, st: GaussianState, horizon: int) -> list[
     return out
 
 
-def _lower_hull(points: list[tuple[float, float, tuple[str, ...]]]) -> list[tuple[float, float, tuple[str, ...]]]:
+def _lower_hull(points: list[Point]) -> list[Point]:
     """Vertices of the lower-left convex hull, damage increasing and value strictly decreasing.
 
     Points within ``TIE_TOL`` in value keep the earlier one (STOP first, then catalogue order).
     """
     order = sorted(range(len(points)), key=lambda i: (points[i][0], points[i][1], i))
-    front: list[tuple[float, float, tuple[str, ...]]] = []
+    front: list[Point] = []
     for i in order:  # Pareto front: each kept point is strictly cheaper than all with less damage
         if not front or points[i][1] < front[-1][1] - TIE_TOL:
             front.append(points[i])
-    hull: list[tuple[float, float, tuple[str, ...]]] = []
+    hull: list[Point] = []
     for p in front:
         while len(hull) >= 2:
             (d1, v1, _), (d2, v2, _) = hull[-2], hull[-1]
@@ -526,13 +552,50 @@ def _lower_hull(points: list[tuple[float, float, tuple[str, ...]]]) -> list[tupl
     return hull
 
 
+def _hull_at(hull: list[Point], delta: float) -> tuple[float, list[tuple[float, tuple[str, ...]]], float] | None:
+    """(value, [(weight, sequence)], slope price) of a lower hull at ``delta``; None if infeasible."""
+    if not hull or hull[0][0] > delta:
+        return None
+    if hull[-1][0] <= delta:  # the limit does not bind on this hull
+        return hull[-1][1], [(1.0, hull[-1][2])], 0.0
+    k = max(i for i, (d, _, _) in enumerate(hull) if d <= delta)
+    (d1, v1, s1), (d2, v2, s2) = hull[k], hull[k + 1]
+    mu = (v1 - v2) / (d2 - d1)
+    q = (d2 - delta) / (d2 - d1)  # weight of the plan with less damage
+    if q >= 1.0 - 1e-15:
+        return v1, [(1.0, s1)], mu
+    return q * v1 + (1.0 - q) * v2, [(q, s1), (1.0 - q, s2)], mu
+
+
+def _shared(a: tuple[str, ...], b: tuple[str, ...]) -> tuple[str, ...]:
+    n = 0
+    while n < min(len(a), len(b)) and a[n] == b[n]:
+        n += 1
+    return a[:n]
+
+
+def gaussian_retention_frontier(
+    model: GaussianModel = DEFAULT_GAUSSIAN_MODEL, horizon: int = 5, state: GaussianState | None = None
+) -> tuple[tuple[float, float, tuple[str, ...]], ...]:
+    """Vertices ``(damage, value, plan)`` of the lower convex hull: the optimum under the expected
+    limit for *every* ``delta`` at once (linear between vertices, flat after the last one).
+
+    The slope between two vertices is the price of the limit there; read it to choose ``delta``.
+    """
+    _check_horizon(horizon)
+    st = initial_state(model) if state is None else state
+    _check_state(st)
+    return tuple(_lower_hull(_plan_points(model, st, horizon)))
+
+
 def solve_gaussian_retention(
     model: GaussianModel = DEFAULT_GAUSSIAN_MODEL,
     horizon: int = 5,
     delta: float = 0.0,
     state: GaussianState | None = None,
 ) -> GaussianRetentionResult:
-    """Bayes-optimal policy under the expected limit ``E[(x - x0)^2] <= delta`` (N-52).
+    """Bayes-optimal policy under the expected limit ``E[(x - x0)^2] <= delta`` (N-52), with the
+    best deterministic policy (N-53) and the best single plan next to it.
 
     Exact over all policies (randomised or data-dependent): the lower convex hull of the plan
     points ``(D(s), V(s))`` at ``delta``. Cost: every plan is evaluated once
@@ -549,42 +612,40 @@ def solve_gaussian_retention(
         raise ValueError("the start state already violates the retention limit")
     points = _plan_points(model, st, horizon)
     hull = _lower_hull(points)
-    best_d, best_v, best_s = hull[-1]
-    unconstrained = plan_value(model, best_s, st)
-    feasible = [(v, i) for i, (d, v, _) in enumerate(points) if d <= delta]
-    det_v, det_i = min(feasible, key=lambda t: (t[0], t[1]))
-    deterministic = plan_value(model, points[det_i][2], st)
+    unconstrained = plan_value(model, hull[-1][2], st)
+    found = _hull_at(hull, delta)
+    if found is None:  # unreachable: the empty plan has the start damage
+        raise ArithmeticError("no plan meets the limit")
+    _, mix, mu = found
+    comps = tuple((w, plan_value(model, seq, st)) for w, seq in mix)
 
-    if best_d <= delta:  # the limit does not bind
-        comps: tuple[tuple[float, GaussianPlan], ...] = ((1.0, unconstrained),)
-        mu = 0.0
-    else:
-        k = max(i for i, (d, _, _) in enumerate(hull) if d <= delta)  # hull[0] is STOP-side, d minimal
-        (d1, v1, s1), (d2, v2, s2) = hull[k], hull[k + 1]
-        mu = (v1 - v2) / (d2 - d1)
-        q = (d2 - delta) / (d2 - d1)  # weight of the plan with less damage
-        if q >= 1.0 - 1e-15:
-            comps = ((1.0, plan_value(model, s1, st)),)
-        else:
-            comps = ((q, plan_value(model, s1, st)), (1.0 - q, plan_value(model, s2, st)))
+    # best deterministic policy: fixed first reading (or STOP), then the data may draw
+    det: tuple[float, list[tuple[float, tuple[str, ...]]]] = (points[0][1], [(1.0, ())])  # STOP
+    for a in model.actions:
+        sub = _hull_at(_lower_hull([p for p in points if p[2][:1] == (a.name,)]), delta)
+        if sub is not None and sub[0] < det[0] - TIE_TOL:
+            det = (sub[0], sub[1])
+    det_comps = tuple((w, plan_value(model, seq, st)) for w, seq in det[1])
+
+    feasible = [(v, i) for i, (d, v, _) in enumerate(points) if d <= delta]
+    single = plan_value(model, points[min(feasible, key=lambda t: (t[0], t[1]))[1]][2], st)
+
     value = sum(w * p.value for w, p in comps)
     damage = sum(w * p.damage for w, p in comps)
+    det_value = sum(w * p.value for w, p in det_comps)
+    det_damage = sum(w * p.damage for w, p in det_comps)
     dual = min(v + mu * (d - delta) for d, v, _ in points)
     gap = value - dual
     tol = 4 * (horizon + 1) * TIE_TOL * max(1.0, abs(value), mu)
-    if not all(isfinite(x) for x in (value, damage, mu, dual, gap)):
+    if not all(isfinite(x) for x in (value, damage, mu, dual, gap, det_value, det_damage)):
         raise ArithmeticError("non-finite retention optimum")
-    if damage > delta + tol or gap < -tol or gap > tol:
+    if damage > delta + tol or det_damage > delta + tol or abs(gap) > tol:
         raise ArithmeticError("retention optimum fails its own certificate")
-    if deterministic.value < value - tol:
-        raise ArithmeticError("a single plan beats the mixture optimum: hull search is wrong")
-    shared: tuple[str, ...] = ()
-    if len(comps) == 2:
-        a, b = comps[0][1].sequence, comps[1][1].sequence
-        n = 0
-        while n < min(len(a), len(b)) and a[n] == b[n]:
-            n += 1
-        shared = a[:n]
+    if not value - tol <= det_value <= single.value + tol:
+        raise ArithmeticError("policy classes out of order: mixture <= deterministic <= single plan violated")
+    if len(det_comps) == 2 and not _shared(det_comps[0][1].sequence, det_comps[1][1].sequence):
+        raise ArithmeticError("deterministic components must share their first reading")
+    shared = _shared(comps[0][1].sequence, comps[1][1].sequence) if len(comps) == 2 else ()
     return GaussianRetentionResult(
         delta=delta,
         horizon=horizon,
@@ -595,7 +656,10 @@ def solve_gaussian_retention(
         multiplier=mu,
         dual_bound=dual,
         duality_gap=gap,
-        deterministic=deterministic,
+        deterministic_value=det_value,
+        deterministic_damage=det_damage,
+        deterministic_components=det_comps,
+        best_single_plan=single,
         unconstrained=unconstrained,
     )
 
