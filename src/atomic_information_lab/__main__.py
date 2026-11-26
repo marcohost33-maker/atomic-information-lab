@@ -69,7 +69,12 @@ def _build_parser() -> argparse.ArgumentParser:
     gp.add_argument("--energy-lambda", type=_finite_float, default=0.012)
     gp.add_argument("--alpha", type=_finite_float, default=0.5)
     gp.add_argument("--retention-weight", type=_finite_float, default=0.0)
-    gp.add_argument("--retention-limit", type=_finite_float, default=None, help="limit on E[(x - x0)^2]")
+    gp.add_argument(
+        "--retention-limit",
+        type=_finite_float,
+        default=None,
+        help="limit on E[(x - x0)^2]; 'optimal' is then the exact (possibly mixed) optimum",
+    )
     sp = sub.add_parser("solve", help="solve one single-model instance")
     sp.add_argument("--horizon", type=int, required=True)
     sp.add_argument("--k01", type=_finite_float, default=0.07)
@@ -308,6 +313,7 @@ def _gaussian(args) -> dict:
         lookahead_plan,
         model_reference_plan,
         solve_gaussian,
+        solve_gaussian_retention,
     )
 
     m = dataclasses.replace(
@@ -324,6 +330,11 @@ def _gaussian(args) -> dict:
     out["lookahead"]["depth"] = args.depth
     if args.retention_limit is None:
         out["reference_plan"] = dataclasses.asdict(fixed_plan(m, model_reference_plan(m, args.horizon)))
+    else:
+        # R35 (Codex review of PR #8): under the expected limit the optimum is a mix of at most two
+        # plans; the single plan is reported next to it under its own name, never as "optimal".
+        out["best_plan_under_limit"] = out.pop("optimal")
+        out["optimal"] = dataclasses.asdict(solve_gaussian_retention(m, args.horizon, args.retention_limit))
     return out
 
 

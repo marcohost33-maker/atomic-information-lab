@@ -44,9 +44,26 @@ doi:10.1109/TAC.1974.1100635). Under these conditions the value of adaptivity is
 (finding N-47). Drop (iii) and it returns: with a 0-1 loss for the sign of ``x0`` the
 terminal risk ``Phi(-|m| / sqrt(v))`` depends on the posterior mean, and a stopping rule that
 looks at the data beats every fixed plan (finding N-50). A retention limit on the posterior
-damage ``conditional_damage`` would also be data-dependent; the limit implemented here
-(``retention_limit``) is on the data-averaged damage only. Dropping (ii) (unknown variances)
-breaks the linearity of the posterior.
+damage ``conditional_damage`` would also be data-dependent; the limits implemented here are on
+the data-averaged damage only. Dropping (ii) (unknown variances) breaks the linearity of the
+posterior.
+
+A limit on the data-averaged damage ``E[(x - x0)^2] <= delta`` is a constraint on an
+*expectation*, and it changes the picture (R35, Codex review of PR #8, findings N-52, N-53).
+Every policy -- randomised or data-dependent -- induces a distribution over the reading
+sequences it carries out, and its expected value and expected damage are the matching averages
+of the plan values ``V(s)`` and plan damages ``D(s)`` (the posterior variances do not depend on
+the data, and a reading's drift is independent of every decision taken before it). The set of
+achievable ``(damage, value)`` pairs is therefore the convex hull of the plan points, and the
+optimum under the limit is the lower convex hull at ``delta``: one plan or a mix of two (a
+linear programme with two constraints; Beutler & Ross 1985 for constrained MDPs). That optimum
+is ``solve_gaussian_retention``. The deterministic open-loop plan of ``solve_gaussian(...,
+retention_limit=delta)`` is only the best *plan* under the limit and can be far worse (36.6 %
+above the optimum in the default model at ``h = 2``, ``delta = 0.03``; N-52). When both
+components share their first readings, the mix needs no external coin: splitting on the
+standardised innovation of the last shared reading realises it with a deterministic,
+data-dependent rule -- so under an expected limit adaptivity is worth more than zero even in
+this model class (N-53).
 
 The independent oracle ``tests/_gaussian_oracle.py`` recomputes every posterior in exact
 rational arithmetic by batch least squares (information form over the noise sequence), sharing
@@ -73,6 +90,7 @@ __all__ = [
     "GaussianObjective",
     "GaussianState",
     "GaussianPlan",
+    "GaussianRetentionResult",
     "DEFAULT_GAUSSIAN_ACTIONS",
     "DEFAULT_GAUSSIAN_MODEL",
     "initial_state",
@@ -81,6 +99,8 @@ __all__ = [
     "terminal_loss",
     "conditional_damage",
     "solve_gaussian",
+    "solve_gaussian_retention",
+    "innovation",
     "plan_value",
     "lookahead_plan",
     "reference_plan",
@@ -399,11 +419,14 @@ def solve_gaussian(
     *,
     retention_limit: float | None = None,
 ) -> GaussianPlan:
-    """Bayes-optimal policy with STOP (an open-loop plan, see the module docstring).
+    """Best open-loop plan "measure ``a_1 .. a_n``, then STOP".
 
-    ``retention_limit`` (``delta``): a reading is admissible only if the data-averaged damage
-    ``E[(x - x0)^2]`` stays ``<= delta`` afterwards (the *expected* reading of the limit, F29 in
-    the discrete line). It is not a pathwise limit: the posterior damage
+    Without ``retention_limit`` this is the Bayes-optimal policy with STOP (N-47).
+
+    With ``retention_limit`` (``delta``) it is the best *deterministic plan* whose data-averaged
+    damage ``E[(x - x0)^2]`` stays ``<= delta`` -- not the optimum under that expected limit:
+    a mix of two plans, or a data-dependent rule, can do strictly better (N-52, N-53; use
+    ``solve_gaussian_retention``). The limit is not pathwise either: the posterior damage
     ``conditional_damage`` depends on the data and is unbounded under Gaussian tails, so a hard
     pathwise version would admit only readings that carry no information about ``x - x0``
     (finding N-51). Ties within ``1e-12``: STOP first, then catalogue order.
@@ -418,6 +441,165 @@ def solve_gaussian(
     return plan_value(model, seq, st)
 
 
+def innovation(model: GaussianModel, state: GaussianState, action: GaussianAction, y: float) -> tuple[float, float]:
+    """Innovation ``y - E[y | data]`` of one reading and its variance (before the update).
+
+    The standardised innovation ``e / sqrt(s)`` is standard normal and independent of the data
+    seen before; ``Phi`` of it is a uniform draw supplied by the data (used by N-53).
+    """
+    if action not in model.actions:
+        raise ValueError(f"action {action!r} not in this model")
+    if not _finite(y):
+        raise ValueError("observation must be a finite real number")
+    pr = predict(model, state, action)
+    h = _h(action)
+    s = sum(h[i] * pr.cov[i][j] * h[j] for i in range(3) for j in range(3)) + action.noise_var
+    if not (isfinite(s) and s > 0):
+        raise ArithmeticError("innovation variance is not positive and finite")
+    return y - sum(h[i] * pr.mean[i] for i in range(3)), s
+
+
+@dataclass(frozen=True)
+class GaussianRetentionResult:
+    """Optimum under the expected limit ``E[(x - x0)^2] <= delta`` (see the module docstring).
+
+    ``components`` holds one plan, or two plans with their weights; the mix draws one plan before
+    the first reading -- or, if ``shared_prefix`` is not empty, after those readings by a
+    threshold on the standardised innovation of the last shared one (N-53).
+    ``multiplier`` is the price ``mu*`` of the limit (slope of the lower hull at ``delta``);
+    ``dual_bound = min_s V(s) + mu* (D(s) - delta)`` over *all* plans is a lower bound on every
+    policy meeting the limit, so ``duality_gap`` certifies the optimum. ``deterministic`` is the
+    best single plan meeting the limit (``solve_gaussian``), ``unconstrained`` the optimum
+    without the limit.
+    """
+
+    delta: float
+    horizon: int
+    value: float
+    damage: float
+    components: tuple[tuple[float, GaussianPlan], ...]
+    shared_prefix: tuple[str, ...]
+    multiplier: float
+    dual_bound: float
+    duality_gap: float
+    deterministic: GaussianPlan
+    unconstrained: GaussianPlan
+    scope: str = GAUSSIAN_SCOPE
+
+
+def _plan_points(model: GaussianModel, st: GaussianState, horizon: int) -> list[tuple[float, float, tuple[str, ...]]]:
+    """(damage, value, sequence) of every plan of length 0..horizon, STOP first, catalogue order."""
+    out: list[tuple[float, float, tuple[str, ...]]] = []
+
+    def rec(s: GaussianState, seq: tuple[str, ...], cost: float) -> None:
+        out.append((s.damage, cost + terminal_loss(model, s), seq))
+        if len(seq) < horizon:
+            for a in model.actions:
+                rec(update(model, s, a), (*seq, a.name), cost + _step_cost(model, a))
+
+    rec(st, (), 0.0)
+    if not all(isfinite(d) and isfinite(v) for d, v, _ in out):
+        raise ArithmeticError("non-finite plan point")
+    return out
+
+
+def _lower_hull(points: list[tuple[float, float, tuple[str, ...]]]) -> list[tuple[float, float, tuple[str, ...]]]:
+    """Vertices of the lower-left convex hull, damage increasing and value strictly decreasing.
+
+    Points within ``TIE_TOL`` in value keep the earlier one (STOP first, then catalogue order).
+    """
+    order = sorted(range(len(points)), key=lambda i: (points[i][0], points[i][1], i))
+    front: list[tuple[float, float, tuple[str, ...]]] = []
+    for i in order:  # Pareto front: each kept point is strictly cheaper than all with less damage
+        if not front or points[i][1] < front[-1][1] - TIE_TOL:
+            front.append(points[i])
+    hull: list[tuple[float, float, tuple[str, ...]]] = []
+    for p in front:
+        while len(hull) >= 2:
+            (d1, v1, _), (d2, v2, _) = hull[-2], hull[-1]
+            # drop the middle vertex unless it lies strictly below the chord from hull[-2] to p
+            if (v2 - v1) * (p[0] - d1) >= (p[1] - v1) * (d2 - d1) - TIE_TOL * (p[0] - d1):
+                hull.pop()
+            else:
+                break
+        hull.append(p)
+    return hull
+
+
+def solve_gaussian_retention(
+    model: GaussianModel = DEFAULT_GAUSSIAN_MODEL,
+    horizon: int = 5,
+    delta: float = 0.0,
+    state: GaussianState | None = None,
+) -> GaussianRetentionResult:
+    """Bayes-optimal policy under the expected limit ``E[(x - x0)^2] <= delta`` (N-52).
+
+    Exact over all policies (randomised or data-dependent): the lower convex hull of the plan
+    points ``(D(s), V(s))`` at ``delta``. Cost: every plan is evaluated once
+    (``sum_k |A|^k`` covariance updates, as ``solve_gaussian``).
+    """
+    _check_horizon(horizon)
+    if delta is None:
+        raise ValueError("delta must be a finite number >= 0")
+    _check_limit(delta)
+    delta = float(delta)
+    st = initial_state(model) if state is None else state
+    _check_state(st)
+    if st.damage > delta:
+        raise ValueError("the start state already violates the retention limit")
+    points = _plan_points(model, st, horizon)
+    hull = _lower_hull(points)
+    best_d, best_v, best_s = hull[-1]
+    unconstrained = plan_value(model, best_s, st)
+    feasible = [(v, i) for i, (d, v, _) in enumerate(points) if d <= delta]
+    det_v, det_i = min(feasible, key=lambda t: (t[0], t[1]))
+    deterministic = plan_value(model, points[det_i][2], st)
+
+    if best_d <= delta:  # the limit does not bind
+        comps: tuple[tuple[float, GaussianPlan], ...] = ((1.0, unconstrained),)
+        mu = 0.0
+    else:
+        k = max(i for i, (d, _, _) in enumerate(hull) if d <= delta)  # hull[0] is STOP-side, d minimal
+        (d1, v1, s1), (d2, v2, s2) = hull[k], hull[k + 1]
+        mu = (v1 - v2) / (d2 - d1)
+        q = (d2 - delta) / (d2 - d1)  # weight of the plan with less damage
+        if q >= 1.0 - 1e-15:
+            comps = ((1.0, plan_value(model, s1, st)),)
+        else:
+            comps = ((q, plan_value(model, s1, st)), (1.0 - q, plan_value(model, s2, st)))
+    value = sum(w * p.value for w, p in comps)
+    damage = sum(w * p.damage for w, p in comps)
+    dual = min(v + mu * (d - delta) for d, v, _ in points)
+    gap = value - dual
+    tol = 4 * (horizon + 1) * TIE_TOL * max(1.0, abs(value), mu)
+    if not all(isfinite(x) for x in (value, damage, mu, dual, gap)):
+        raise ArithmeticError("non-finite retention optimum")
+    if damage > delta + tol or gap < -tol or gap > tol:
+        raise ArithmeticError("retention optimum fails its own certificate")
+    if deterministic.value < value - tol:
+        raise ArithmeticError("a single plan beats the mixture optimum: hull search is wrong")
+    shared: tuple[str, ...] = ()
+    if len(comps) == 2:
+        a, b = comps[0][1].sequence, comps[1][1].sequence
+        n = 0
+        while n < min(len(a), len(b)) and a[n] == b[n]:
+            n += 1
+        shared = a[:n]
+    return GaussianRetentionResult(
+        delta=delta,
+        horizon=horizon,
+        value=value,
+        damage=damage,
+        components=comps,
+        shared_prefix=shared,
+        multiplier=mu,
+        dual_bound=dual,
+        duality_gap=gap,
+        deterministic=deterministic,
+        unconstrained=unconstrained,
+    )
+
+
 def lookahead_plan(
     model: GaussianModel = DEFAULT_GAUSSIAN_MODEL,
     horizon: int = 5,
@@ -429,6 +611,9 @@ def lookahead_plan(
 
     ``depth = 1`` is the greedy (myopic) rule, ``depth = 2`` the two-step look-ahead of the
     roadmap. The rule stops as soon as the truncated problem prefers STOP or the horizon is used.
+    With ``retention_limit`` the truncated problems are those of ``solve_gaussian`` (deterministic
+    plans under the limit), so the result is compared with that plan, not with the mixture
+    optimum of ``solve_gaussian_retention``.
     """
     _check_horizon(horizon)
     _check_limit(retention_limit)

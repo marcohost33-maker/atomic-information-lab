@@ -28,6 +28,7 @@ from atomic_information_lab.gaussian import (
     plan_value,
     reference_plan,
     solve_gaussian,
+    solve_gaussian_retention,
     terminal_loss,
     update,
 )
@@ -286,7 +287,12 @@ def test_cli_gaussian(capsys):
     assert out["lookahead"]["depth"] == 2 and out["optimal"]["scope"] == GAUSSIAN_SCOPE
     assert main(["gaussian", "--horizon", "4", "--retention-limit", "0.03"]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert out["optimal"]["damage"] <= 0.03 and "reference_plan" not in out
+    assert out["optimal"]["damage"] <= 0.03 + TOL and "reference_plan" not in out
+    assert out["best_plan_under_limit"]["damage"] <= 0.03
+    assert out["optimal"]["value"] <= out["best_plan_under_limit"]["value"] + TOL
+    assert out["optimal"]["value"] == pytest.approx(
+        solve_gaussian_retention(DEFAULT_GAUSSIAN_MODEL, 4, 0.03).value, abs=TOL
+    )
     for argv in (["gaussian", "--horizon", "11"], ["gaussian", "--horizon", "2", "--depth", "0"]):
         assert main(argv) == 2
     assert main(["reproduce", "--table", "gaussian", "--max-horizon", "2"]) == 0
