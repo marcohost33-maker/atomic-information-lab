@@ -52,6 +52,7 @@ PL_FILE = "atomic_information_lab/likelihood_profile.py"
 PL = "tests/test_r32_profile_likelihood.py"
 GAUSS_FILE = "atomic_information_lab/gaussian.py"
 GAUSS = "tests/test_r34_gaussian.py"
+R35 = "tests/test_r35_retention_mixture.py"
 
 # id: (file, old, new, what it breaks, {suite: expected verdict})
 MUTANTS = {
@@ -423,6 +424,38 @@ MUTANTS = {
         "the table's reference plan uses the default action names regardless of the catalogue (R34b defect 1); "
         "caught as a guard: the unknown action name raises ValueError, exactly how the defect showed",
         {GAUSS: "guard"},
+    ),
+    "M53_gauss_mixture_weight_swapped": (
+        GAUSS_FILE,
+        "    q = (d2 - delta) / (d2 - d1)  # weight of the plan with less damage",
+        "    q = (delta - d1) / (d2 - d1)  # weight of the plan with less damage",
+        "the two hull plans get each other's weight (R35): the mix misses the limit or the optimum; "
+        "caught as a guard by the result's own certificate (damage <= delta, duality gap 0)",
+        {R35: "guard"},
+    ),
+    "M54_gauss_hull_not_convex": (
+        GAUSS_FILE,
+        "                hull.pop()\n",
+        "                break\n",
+        "the lower hull keeps non-convex front points (R35): the mix interpolates between the wrong plans; "
+        "since R35b killed by relations (rational oracles) as well as by the certificate",
+        {R35: "relation"},
+    ),
+    "M55_gauss_shared_prefix_inverted": (
+        GAUSS_FILE,
+        "    while n < min(len(a), len(b)) and a[n] == b[n]:",
+        "    while n < min(len(a), len(b)) and a[n] != b[n]:",
+        "the shared prefix that lets the data replace the coin is computed wrongly (R35, N-53); since R35b "
+        "caught as a guard: the deterministic components then appear not to share a first reading",
+        {R35: "guard"},
+    ),
+    "M56_gauss_deterministic_groups_by_last_reading": (
+        GAUSS_FILE,
+        "        sub = _hull_at(_lower_hull([p for p in points if p[2][:1] == (a.name,)]), delta)",
+        "        sub = _hull_at(_lower_hull([p for p in points if p[2][-1:] == (a.name,)]), delta)",
+        "the best deterministic policy mixes plans that do not share their first reading (R35b): it would "
+        "need a coin before any data; caught as a guard by the shared-first-reading check",
+        {R35: "guard"},
     ),
 }
 _RELATION_PREFIXES = ("AssertionError", "assert ", "Failed: DID NOT RAISE")

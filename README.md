@@ -502,13 +502,29 @@ offset prior × drift × energy price, `h = 6`; `docs/GAUSSIAN_GRID_RESULTS.json
 
 Practical consequence inside this model class: the exact search costs `Σ_k |A|^k` covariance
 updates (1 092 for three actions and `h = 6`, about 0.03 s; `h = 10`: about 2.6 s), so there is no
-reason to use either heuristic. A retention limit on the data-averaged damage
-`E[(x−x0)²] ≤ δ` is available (`retention_limit`, the expected reading of F29). It is **not** a
-pathwise limit: the posterior damage `E[(x−x0)²|D]` (`conditional_damage`) depends on the data
-(e.g. 0.037 or 0.149 after the same two readings) and is unbounded under Gaussian tails, so a
-hard pathwise version would admit only readings that carry no information about `x − x0`
-(N-51). CLI: `gaussian --horizon 6 [--depth 2] [--retention-limit δ] [--alpha a]
-[--retention-weight w]`. Every figure carries `scope = MODEL_INTERNAL_EXACT_LINEAR_GAUSSIAN`.
+reason to use either heuristic.
+
+**Retention limit on the data-averaged damage `E[(x−x0)²] ≤ δ`** (the expected reading of F29;
+added in R35 after the cross-family review of PR #8, corrected in R35b). The limit constrains an
+expectation, so the optimum over all policies is the lower convex hull of the plan points
+(damage, value) at δ -- one plan or a mix of two (N-52). `solve_gaussian_retention` solves three
+nested policy classes exactly and reports them side by side:
+
+| policy class | how it is found | worst gap over δ (default model, `h ≥ 2`) |
+|---|---|---|
+| randomised optimum (`value`) | lower hull at δ; certified by a dual bound over all plans | -- |
+| best deterministic policy (`deterministic_value`) | best first reading, then the data draw: a threshold on the standardised innovation (N-53) | up to 29.03 % above the optimum |
+| best single plan (`best_single_plan`, = `solve_gaussian(..., retention_limit=δ)`) | best plan meeting the limit | up to 52.76 % above the optimum, 41.63 % above the deterministic policy |
+
+So under this limit a data-dependent rule beats every fixed plan, while against randomised
+open-loop plans adaptivity is still worth zero. `gaussian_retention_frontier` returns the hull
+for every δ at once (the slopes are the price of the limit). The limit is **not** pathwise: the
+posterior damage `E[(x−x0)²|D]` (`conditional_damage`) depends on the data (e.g. 0.037 or 0.149
+after the same two readings) and is unbounded under Gaussian tails, so a hard pathwise version
+would admit only readings that carry no information about `x − x0` (N-51). CLI: `gaussian
+--horizon 6 [--depth 2] [--retention-limit δ] [--alpha a] [--retention-weight w]`; with a limit,
+`optimal` holds all three classes and `best_plan_under_limit` the single plan. Every figure carries
+`scope = MODEL_INTERNAL_EXACT_LINEAR_GAUSSIAN`.
 
 ## How it is verified
 
@@ -642,7 +658,7 @@ From section 13.1 of the R1–R12 report (2026-10-18):
 | R29-02 | Separate outputs Bayes risk / MI(X0;Y) / P(X_T≠X0) / energy / steps | **done** (`metrics.py`, oracle-verified; finding N-32; same-family, cross-family review pending) |
 | R29-03 | Pareto list in `design_search` instead of a single D-optimal winner | **done** (`design_pareto`, Fisher spectrum on every report; findings N-33, N-34; same-family, cross-family review pending) |
 | R29 / P1 | Profile likelihood for practical identifiability (Raue et al. 2009, doi:10.1093/bioinformatics/btp358) | **done** (`likelihood_profile.py`: expected-data profiles, observed-data LR intervals; LR coverage measured pre-registered; findings N-36–N-45; same-family) |
-| R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | **done** (`gaussian.py`: exact open-loop optimum with STOP, rational batch oracle; pre-registered grid G1–G6, G4 refuted; findings N-47–N-51 incl. self-review R34b; same-family, cross-family review pending) |
+| R13 / P0 | Gaussian filter + STOP + two-step look-ahead, fixed reference plan as baseline | **done** (`gaussian.py`: exact open-loop optimum with STOP, rational batch oracle; pre-registered grid G1–G6, G4 refuted; findings N-47–N-51 incl. self-review R34b; cross-family review by Codex on PR #8: P2 fixed as N-52/N-53 in R35/R35b, P1 reproduced as a squash artefact, gate kept fail-closed) |
 | R14 / P1 | RBPF/SMC for long sequences; session-paired preregistration | open |
 | R15 / P2 | Laboratory integration (STM/AFM raw data); Hexa-NTK / CodeFactory adapters | open, outside this repository |
 

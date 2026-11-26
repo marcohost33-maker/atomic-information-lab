@@ -14,7 +14,10 @@ questions and have different optimal policies:
 ``expected`` -- the probability over all outcomes, ``P(x_T != x0)`` at the
     stopping time, is at most ``delta`` (formula F29). This is a constrained
     MDP with one constraint: its optimum is a deterministic policy or a mix of
-    two (Beutler & Ross 1985), found through the Lagrangian
+    two -- over a finite horizon this is the basic solution of the linear
+    programme over the weights of the finitely many deterministic policies (the
+    infinite-horizon, time-average analogue is Beutler & Ross 1985,
+    doi:10.1016/0022-247X(85)90288-4) -- found through the Lagrangian
     ``L(b) + mu * P(x != x0 | b)`` -- which is the R12 retention penalty with
     weight ``beta + mu``. The multiplier ``mu*`` is located exactly by a
     breakpoint search on the finite set of deterministic policies; the result

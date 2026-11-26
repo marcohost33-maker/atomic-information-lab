@@ -5,6 +5,35 @@ Changelog; versioning: SemVer.
 
 ## [Unreleased]
 
+### Fixed -- R35b: self-review of R35 (correction record in FINDINGS §10)
+- `GaussianRetentionResult.deterministic` held the best single plan, not the best deterministic
+  policy; renamed `best_single_plan`. The deterministic class is now solved exactly
+  (`deterministic_value`, `deterministic_damage`, `deterministic_components`: best first reading,
+  then a split on the innovation), with a rational oracle and a simulation.
+- Claims corrected with exact suprema: single plan up to 52.76 % above the optimum (was "largest
+  gap seen 36.6 %"), 41.63 % above the deterministic policy; the coin is worth up to 29.03 %.
+  N-53 rescoped (data-dependent beats every fixed plan, not randomised plans).
+- New `gaussian_retention_frontier` (the hull for every δ). Test linking the multiplier to the
+  retention weight (Gaussian analogue of N-15).
+- Beutler & Ross 1985 cited with DOI and scoped as the infinite-horizon analogue (also in
+  `retention.py`). Mutant M56; expected verdicts of M54/M55 updated (stronger tests).
+
+### Fixed -- R35: cross-family review of PR #8 (Codex, at `c74cc69`; findings N-52, N-53)
+- P2: under the expected limit `E[(x - x0)^2] <= delta` the Gaussian line reported the best
+  single plan as the optimum. New `solve_gaussian_retention` (exact over all randomised and
+  data-dependent policies: lower convex hull of the plan points, at most two plans, multiplier,
+  dual bound over all plans, duality gap, comparison with the best single plan and the
+  unconstrained optimum); new `innovation`. `solve_gaussian` / `lookahead_plan` docstrings scope
+  their retention limit to single plans. CLI `gaussian --retention-limit`: `optimal` is now the
+  exact optimum, the single plan moves to `best_plan_under_limit`.
+- N-53: when both hull plans share their first readings, a threshold on the standardised
+  innovation realises the mix without a coin (simulation-checked, with a negative control).
+- P1: reproduced as the shape of a squash (`2d1080d` is not in this repository); history kept,
+  gate kept fail-closed. `verify_preregistration.py` reports the cause under `diagnosis` (also for
+  a clone that lacks the registration commit); a test squashes the branch in a scratch clone.
+- Mutants M53–M55; `tests/test_r35_retention_mixture.py` (rational pairwise oracle, certificate,
+  shape, generative simulation, squash diagnosis).
+
 ### Added -- R34: continuous line, Kalman filter + STOP + look-ahead (roadmap R13/P0)
 - `gaussian` module: linear-Gaussian analogue of the model (drifting stored value and sensor
   offset, target and reference reads, back-action on the drift); Kalman filter in Joseph form;
